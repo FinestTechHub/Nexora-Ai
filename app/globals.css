@@ -22,3 +22,14 @@ body { @apply bg-bg text-ink antialiased; }
   .h2 { @apply text-[clamp(1.9rem,5vw,2.9rem)] font-extrabold leading-[1.1] tracking-tight; }
   .field { @apply w-full rounded-2xl border border-line bg-card px-4 py-3 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/20 aria-[invalid=true]:border-red-500; }
 }
+
+/* Obsidian theme for the dashboard. Re-colours every dashboard page through the same variables. */
+.dash-dark { --bg:#0a0a0c; --soft:#17171b; --ink:#ececf0; --muted:#8e8e99; --card:#111114; --line:#26262c; color-scheme: dark; }
+
+/* App feel: page transition, no tap flash, no rubber-band scrolling, flat cards */
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } }
+.page-in { animation: pageIn .28s ease-out; }
+.dash-dark { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.dash-dark button, .dash-dark a { touch-action: manipulation; }
+.dash-dark textarea, .dash-dark input, .dash-dark pre, .dash-dark [role="log"] * { user-select: text; -webkit-user-select: text; }
+.dash-dark .card:hover { transform: none; box-shadow: none; }
