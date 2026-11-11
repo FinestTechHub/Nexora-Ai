@@ -4,7 +4,7 @@ import { RotateCcw, Sparkles } from "lucide-react";
 import { improvePrompt, validateInput } from "@/lib/ai/engine";
 
 // Small "Improve" button that sits inside a prompt box. Demo: template-based, no AI yet.
-export default function ImproveButton({ slug, text, setText, values = {}, max }: { slug: string; text: string; setText: (v: string) => void; values?: Record<string, string>; max?: number }) {
+export default function ImproveButton({ slug, text, setText, values = {}, max, inline }: { slug: string; text: string; setText: (v: string) => void; values?: Record<string, string>; max?: number; inline?: boolean }) {
   const [prev, setPrev] = useState<{ before: string; after: string } | null>(null);
   const [msg, setMsg] = useState("");
   const undo = prev !== null && prev.after === text;
@@ -18,7 +18,7 @@ export default function ImproveButton({ slug, text, setText, values = {}, max }:
     setPrev({ before: text, after: out }); setText(out); setMsg("");
   }
   return (
-    <div className="absolute bottom-2 right-2 flex items-center gap-2">
+    <div className={inline ? "flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-1 py-0.5" : "absolute bottom-2 right-2 flex items-center gap-2"}>
       {msg && <span role="status" className="text-xs text-muted">{msg}</span>}
       <button type="button" onClick={click} title="Demo: adds clarity without changing your meaning" className="flex items-center gap-1 rounded-full bg-soft px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand hover:text-white">
         {undo ? <RotateCcw size={12} /> : <Sparkles size={12} />}{undo ? "Undo" : "Improve"}

@@ -13,11 +13,11 @@ export function ToolHeader({ Icon, title, desc, note }: { Icon: LucideIcon; titl
       <div className="flex items-start gap-4">
         <div className="icon-box !mb-0 shrink-0"><Icon size={24} /></div>
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title} <span className="ml-1 rounded-full border border-line px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-muted">Demo</span></h1>
           <p className="mt-1 text-muted">{desc}</p>
         </div>
       </div>
-      <p className="mt-4 rounded-xl border border-brand/30 bg-soft px-4 py-2 text-sm text-muted"><b className="text-brand">Demo mode:</b> {note ?? "results are placeholder visuals. No AI model is connected yet and no points are charged."}</p>
+      {note && <p className="mt-3 text-xs text-muted">{note}</p>}
     </div>
   );
 }
