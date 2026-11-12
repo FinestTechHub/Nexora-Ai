@@ -7,7 +7,8 @@ import Dock from "./Dock";
 import HeaderSlot from "./HeaderSlot";
 import ModelPicker from "./ModelPicker";
 import { validateInput } from "@/lib/ai/engine";
-import { BALANCE, modelsFor, shortPts } from "@/lib/models";
+import { modelsFor, shortPts } from "@/lib/models";
+import { usePoints } from "@/lib/points/PointsContext";
 
 const MODES = [
   { k: "Chat", slug: "chat", Icon: MessageSquare, ph: "Ask Nexora…" },
@@ -17,6 +18,7 @@ const MODES = [
 const CHIPS = ["Write a 30-second script", "Describe a thumbnail", "Give me 5 video ideas"];
 
 export default function HomeScreen() {
+  const { points: BALANCE } = usePoints();
   const [mode, setMode] = useState<(typeof MODES)[number]>(MODES[0]);
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
@@ -26,7 +28,7 @@ export default function HomeScreen() {
 
   function send() {
     if (!validateInput(mode.slug, text).ok) { setNote("Type something first."); return; }
-    setNote(`Demo only: ${mode.k} generation isn’t connected yet. Nothing was sent.`);
+    setNote(`${mode.k} generation isn’t connected yet. Nothing was sent.`);
   }
   const menu = (
     <>

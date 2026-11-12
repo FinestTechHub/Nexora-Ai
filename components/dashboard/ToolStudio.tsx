@@ -9,7 +9,8 @@ import ModelPicker from "./ModelPicker";
 import HeaderSlot from "./HeaderSlot";
 import PointsInfo from "./PointsInfo";
 import StudioShell, { StudioHero } from "./StudioShell";
-import { BALANCE, genLabel, modelsFor, shortPts } from "@/lib/models";
+import { genLabel, modelsFor, shortPts } from "@/lib/models";
+import { usePoints } from "@/lib/points/PointsContext";
 import { Choice, DemoTag, GRADS } from "./tool-ui";
 
 type Cfg = { icon: string; title: string; desc: string; lab: string; max: number; ph: string; ex: string[]; what: string; upload?: string; btn: string; empty: string; tip: string; out: "video" | "audio" | "text" | "seo" | "thumb" | "ideas" | "prompt"; base?: number; per100?: number; ch: { l: string; o: string[]; d?: number; m?: Record<string, number> }[] };
@@ -17,6 +18,7 @@ const ICONS: Record<string, LucideIcon> = { film: Film, mic: Mic, pen: PenLine, 
 type Out = { kind: string; note?: string; text?: string; items?: string[]; titles?: string[]; description?: string; tags?: string[] };
 
 export default function ToolStudio({ slug }: { slug: string }) {
+  const { points: BALANCE } = usePoints();
   const c = (cfgs.tools as unknown as Record<string, Cfg>)[slug];
   const Icon = ICONS[c.icon];
   const [text, setText] = useState("");
@@ -40,7 +42,7 @@ export default function ToolStudio({ slug }: { slug: string }) {
     setNote(""); setStatus("loading");
     setTimeout(() => { setShown({ p: text, v: vals }); setStatus("done"); }, 1000);
   }
-  const soon = (w: string) => setNote(`Demo only: “${w}” will work once AI generation is connected.`);
+  const soon = (w: string) => setNote(`“${w}” will work once AI generation is connected.`);
   const values: Record<string, string> = { ...Object.fromEntries(c.ch.map((g, i) => [g.l, vals[i]])), ...(model ? { Model: model.id } : {}) };
   const sv = Object.fromEntries(c.ch.map((g, i) => [g.l, shown.v[i]]));
   const eng = (status === "done" ? demoOutput(slug, shown.p, sv) : null) as unknown as Out | null;
@@ -51,14 +53,14 @@ export default function ToolStudio({ slug }: { slug: string }) {
       {status === "loading" && <div className="h-64 animate-pulse rounded-3xl bg-white/5" />}
       {status === "done" && c.out === "video" && (
         <div>
-          <div className="relative grid aspect-video place-items-center rounded-3xl bg-gradient-to-br from-navy via-blue-700 to-sky"><div className="absolute left-4 top-4"><DemoTag /></div><button type="button" aria-label="Play (demo)" onClick={() => soon("Playback")} className="grid h-16 w-16 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><Play size={28} fill="currentColor" /></button></div>
+          <div className="relative grid aspect-video place-items-center rounded-3xl bg-gradient-to-br from-navy via-blue-700 to-sky"><div className="absolute left-4 top-4"><DemoTag /></div><button type="button" aria-label="Play" onClick={() => soon("Playback")} className="grid h-16 w-16 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><Play size={28} fill="currentColor" /></button></div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted"><b className="text-ink">Demo preview</b> · {shown.v.join(" · ")}</p><div className="flex gap-2"><button type="button" onClick={() => soon("Download")} className="btn btn-g !px-4 !py-2 text-sm"><Download size={16} />Download</button><button type="button" onClick={() => soon("Save")} className="btn btn-g !px-4 !py-2 text-sm"><Heart size={16} />Save</button></div></div>
         </div>
       )}
       {status === "done" && c.out === "audio" && (
         <div className="card relative !pt-10 hover:!translate-y-0">
           <div className="absolute left-4 top-4"><DemoTag /></div>
-          <div className="flex items-center gap-4"><button type="button" aria-label="Play (demo)" onClick={() => soon("Playback")} className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand text-white"><Play size={24} fill="currentColor" /></button>
+          <div className="flex items-center gap-4"><button type="button" aria-label="Play" onClick={() => soon("Playback")} className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-brand text-white"><Play size={24} fill="currentColor" /></button>
             <div aria-hidden className="flex h-16 flex-1 items-center gap-[3px]">{Array.from({ length: 36 }).map((_, i) => <i key={i} className="flex-1 rounded-[3px] bg-brand" style={{ height: `${20 + ((i * 37 + shown.p.length * 13) % 70)}%` }} />)}</div></div>
           <p className="mt-3 text-sm text-muted"><b className="text-ink">Demo preview</b> · {shown.v.join(" · ")} · no audio is produced</p>
           <div className="mt-3 flex gap-2"><button type="button" onClick={() => soon("Download")} className="btn btn-g !px-4 !py-2 text-sm"><Download size={16} />Download</button></div>

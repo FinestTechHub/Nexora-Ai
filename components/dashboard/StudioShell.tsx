@@ -12,7 +12,7 @@ export default function StudioShell({ Icon, title, canvas, options, dock, note }
     <div className="relative flex h-full flex-col">
       <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
         <div className="mx-auto max-w-3xl">
-          <div className="mb-4 flex items-center gap-2 text-muted"><Icon size={16} /><span className="text-sm font-medium text-ink">{title}</span><span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider">Demo</span></div>
+          <div className="mb-4 flex items-center gap-2 text-muted"><Icon size={16} /><span className="text-sm font-medium text-ink">{title}</span></div>
           {canvas}
         </div>
       </div>

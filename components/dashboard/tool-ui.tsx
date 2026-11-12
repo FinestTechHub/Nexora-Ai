@@ -13,7 +13,7 @@ export function ToolHeader({ Icon, title, desc, note }: { Icon: LucideIcon; titl
       <div className="flex items-start gap-4">
         <div className="icon-box !mb-0 shrink-0"><Icon size={24} /></div>
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title} <span className="ml-1 rounded-full border border-line px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wider text-muted">Demo</span></h1>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
           <p className="mt-1 text-muted">{desc}</p>
         </div>
       </div>

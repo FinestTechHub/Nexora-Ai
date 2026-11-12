@@ -8,7 +8,8 @@ import ModelPicker from "./ModelPicker";
 import HeaderSlot from "./HeaderSlot";
 import PointsInfo from "./PointsInfo";
 import ImproveButton from "./ImproveButton";
-import { BALANCE, genLabel, modelsFor, shortPts } from "@/lib/models";
+import { genLabel, modelsFor, shortPts } from "@/lib/models";
+import { usePoints } from "@/lib/points/PointsContext";
 
 const durations = ["5s", "10s", "15s"] as const;
 const ratios = { "16:9": "aspect-video", "9:16": "aspect-[9/16] max-w-[260px] mx-auto", "1:1": "aspect-square max-w-sm mx-auto" } as const;
@@ -19,6 +20,7 @@ const quals = ["720p", "1080p"] as const;
 const examples = ["A drone flight over a glowing city at night", "A coffee cup steaming on a rainy window, cinematic", "A robot walking through a neon market"];
 
 export default function VideoStudio() {
+  const { points: BALANCE } = usePoints();
   const [prompt, setPrompt] = useState("");
   const [dur, setDur] = useState<(typeof durations)[number]>("5s");
   const [ratio, setRatio] = useState<keyof typeof ratios>("16:9");
@@ -38,7 +40,7 @@ export default function VideoStudio() {
     setNote(""); setStatus("loading");
     setTimeout(() => { setShown({ r: ratio, d: dur, s: style, m: motion }); setStatus("done"); }, 1100);
   }
-  const soon = (what: string) => setNote(`Demo only: “${what}” will work once AI generation is connected.`);
+  const soon = (what: string) => setNote(`“${what}” will work once AI generation is connected.`);
 
   const canvas = (
     <>
@@ -48,7 +50,7 @@ export default function VideoStudio() {
         <div>
           <div className={`relative grid place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-blue-700 to-sky ${ratios[shown.r]}`}>
             <div className="absolute left-4 top-4"><DemoTag /></div>
-            <button type="button" aria-label="Play (demo)" onClick={() => soon("Playback")} className="grid h-16 w-16 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><Play size={28} fill="currentColor" /></button>
+            <button type="button" aria-label="Play" onClick={() => soon("Playback")} className="grid h-16 w-16 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><Play size={28} fill="currentColor" /></button>
             <div className="absolute inset-x-4 bottom-4"><div className="h-1.5 rounded-full bg-white/25"><div className="h-full w-1/3 rounded-full bg-white" /></div><div className="mt-1.5 flex justify-between text-xs text-white/80"><span>0:00</span><span>0:{shown.d.replace("s", "").padStart(2, "0")}</span></div></div>
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

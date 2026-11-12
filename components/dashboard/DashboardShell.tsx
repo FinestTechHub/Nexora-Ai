@@ -1,34 +1,29 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Bell, FolderOpen, Home, Menu, MessageSquare, Search, Sparkles, X } from "lucide-react";
+import { useState } from "react";
+import { FolderOpen, Home, Menu, MessageSquare, Search, Sparkles, X } from "lucide-react";
 import { createClient, isConfigured } from "@/lib/supabase/client";
 import Logo from "../Logo";
-import account from "@/lib/account.json";
 import { modelsFor } from "@/lib/models";
-import { ACCOUNT, CHAT, OVERVIEW, PAGES, TOOLS, href, type DashItem } from "@/lib/dashboard";
-
-const demoNotes = ["Welcome to Nexora Ai (demo notification)", "Your demo points are ready (demo)", "New tools are coming soon (demo)"];
+import { usePoints } from "@/lib/points/PointsContext";
+import { ACCOUNT, ADMIN, CHAT, OVERVIEW, PAGES, TOOLS, href, type DashItem } from "@/lib/dashboard";
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
-  useEffect(() => {
-    if (!isConfigured) return;
-    createClient().auth.getUser().then(({ data }) => { const u = data.user; if (u) setUser({ name: u.user_metadata?.full_name ?? u.email ?? "Account", email: u.email ?? "" }); });
-  }, []);
-  const initials = (user?.name ?? "Demo User").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const { profile, loading } = usePoints();
+  const name = profile?.full_name || profile?.email || "";
+  const initials = name.split(/[\s@.]+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";
   async function logout() { if (isConfigured) await createClient().auth.signOut(); router.push("/login"); router.refresh(); }
 
   const [open, setOpen] = useState(false);
-  const [menu, setMenu] = useState<"" | "bell" | "user">("");
+  const [userMenu, setUserMenu] = useState(false);
   const [q, setQ] = useState("");
   const hits = q.trim() ? PAGES.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())) : [];
   const slug = path.split("/")[2] ?? "";
   const hasSlot = path === "/dashboard" || Boolean(modelsFor(slug));
-  const title = slug === "tools" ? "Create" : (PAGES.find((p) => p.slug === slug)?.name ?? "Nexora AI");
+  const title = slug === "tools" ? "Create" : slug === "admin" ? "Admin" : (PAGES.find((p) => p.slug === slug)?.name ?? "Nexora AI");
   const FULL = ["", "chat", "image", "video", "image-to-video", "voice", "script", "youtube-seo", "thumbnails", "ideas"];
   const full = FULL.includes(slug);
   const tabs = [
@@ -57,7 +52,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {open && <div className="fixed inset-0 z-30 bg-black/60 lg:hidden" onClick={() => setOpen(false)} />}
       <aside aria-label="Dashboard navigation" className={`fixed inset-y-0 left-0 z-40 w-72 overflow-y-auto border-r border-line bg-[#0d0d10] p-4 transition-transform lg:w-64 lg:translate-x-0 ${open ? "" : "-translate-x-full"}`}>
         <div className="mb-5 flex items-center justify-between"><Logo className="!text-lg" /><button className="p-1 lg:hidden" aria-label="Close menu" onClick={() => setOpen(false)}><X size={20} /></button></div>
-        <Group items={[OVERVIEW, CHAT]} /><Group title="AI Tools" items={TOOLS} /><Group title="Account" items={ACCOUNT} />
+        <Group items={[OVERVIEW, CHAT]} /><Group title="AI Tools" items={TOOLS} /><Group title="Account" items={profile?.role === "admin" ? [...ACCOUNT, ADMIN] : ACCOUNT} />
       </aside>
 
       <header className="relative z-20 shrink-0 pt-[env(safe-area-inset-top)]"><div className="flex h-14 items-center gap-1 px-2 lg:px-6">
@@ -73,17 +68,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           )}
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Link href="/dashboard/pricing" title="Demo points balance" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-brand/60">{account.balance.points} pts</Link>
-          <div className="relative hidden sm:block">
-            <button aria-label="Notifications (demo)" aria-expanded={menu === "bell"} onClick={() => setMenu(menu === "bell" ? "" : "bell")} className="relative grid h-9 w-9 place-items-center rounded-full hover:bg-white/10"><Bell size={18} /><i className="absolute right-2 top-2 h-2 w-2 rounded-full bg-brand" /></button>
-            {menu === "bell" && <div className="absolute right-0 top-11 z-50 w-72 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-xl">{demoNotes.map((n) => <p key={n} className="rounded-xl px-3 py-2 text-sm hover:bg-white/10">{n}</p>)}</div>}
-          </div>
+          <Link href="/dashboard/pricing" title="Points balance" className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold hover:border-brand/60">{loading ? "…" : profile ? `${profile.points.toLocaleString()} pts` : "— pts"}</Link>
           <div className="relative">
-            <button aria-label="Profile menu" aria-expanded={menu === "user"} onClick={() => setMenu(menu === "user" ? "" : "user")} className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand to-sky text-xs font-bold text-white">{initials}</button>
-            {menu === "user" && (
+            <button aria-label="Profile menu" aria-expanded={userMenu} onClick={() => setUserMenu(!userMenu)} className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-brand to-sky text-xs font-bold text-white">{initials}</button>
+            {userMenu && (
               <div className="absolute right-0 top-11 z-50 w-56 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 text-sm shadow-xl">
-                <p className="px-3 py-2 text-muted">{user?.name ?? "Demo User"}<br /><span className="text-xs">{user?.email ?? "demo@nexora.example"}</span></p>
-                <Link href="/dashboard/settings" onClick={() => setMenu("")} className="block rounded-xl px-3 py-2 hover:bg-white/10">Settings</Link>
+                <p className="px-3 py-2 text-muted">{profile?.full_name || "Your account"}<br /><span className="break-all text-xs">{profile?.email ?? ""}</span></p>
+                <Link href="/dashboard/settings" onClick={() => setUserMenu(false)} className="block rounded-xl px-3 py-2 hover:bg-white/10">Settings</Link>
                 <button type="button" onClick={logout} className="block w-full rounded-xl px-3 py-2 text-left hover:bg-white/10">Log out</button>
               </div>
             )}

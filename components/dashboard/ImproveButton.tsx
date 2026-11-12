@@ -20,7 +20,7 @@ export default function ImproveButton({ slug, text, setText, values = {}, max, i
   return (
     <div className={inline ? "flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-900 px-1 py-0.5" : "absolute bottom-2 right-2 flex items-center gap-2"}>
       {msg && <span role="status" className="text-xs text-muted">{msg}</span>}
-      <button type="button" onClick={click} title="Demo: adds clarity without changing your meaning" className="flex items-center gap-1 rounded-full bg-soft px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand hover:text-white">
+      <button type="button" onClick={click} title="Adds clarity without changing your meaning" className="flex items-center gap-1 rounded-full bg-soft px-3 py-1 text-xs font-semibold text-brand transition hover:bg-brand hover:text-white">
         {undo ? <RotateCcw size={12} /> : <Sparkles size={12} />}{undo ? "Undo" : "Improve"}
       </button>
     </div>

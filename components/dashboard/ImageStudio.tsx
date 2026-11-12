@@ -8,7 +8,8 @@ import ModelPicker from "./ModelPicker";
 import HeaderSlot from "./HeaderSlot";
 import PointsInfo from "./PointsInfo";
 import ImproveButton from "./ImproveButton";
-import { BALANCE, genLabel, modelsFor, shortPts } from "@/lib/models";
+import { genLabel, modelsFor, shortPts } from "@/lib/models";
+import { usePoints } from "@/lib/points/PointsContext";
 
 const styles = ["Realistic", "Cinematic", "Anime", "3D Render", "Illustration", "Minimal"] as const;
 const ratios = { "1:1": "aspect-square", "16:9": "aspect-video", "9:16": "aspect-[9/16]", "4:3": "aspect-[4/3]" } as const;
@@ -18,6 +19,7 @@ const qualities = ["Standard", "HD"] as const;
 const examples = ["A futuristic city at sunrise, cinematic lighting", "Minimal product photo of a blue sneaker on white", "A friendly robot reading a book, 3D render"];
 
 export default function ImageStudio() {
+  const { points: BALANCE } = usePoints();
   const [prompt, setPrompt] = useState("");
   const [neg, setNeg] = useState("");
   const [style, setStyle] = useState<(typeof styles)[number]>("Cinematic");
@@ -37,7 +39,7 @@ export default function ImageStudio() {
     setNote(""); setStatus("loading");
     setTimeout(() => { setShown({ n: Number(count), r: ratio, s: style, seed: prompt.length }); setStatus("done"); }, 900);
   }
-  const soon = (what: string) => setNote(`Demo only: “${what}” will work once AI generation is connected.`);
+  const soon = (what: string) => setNote(`“${what}” will work once AI generation is connected.`);
 
   const canvas = (
     <>
@@ -53,8 +55,8 @@ export default function ImageStudio() {
                 <figcaption className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-3 text-white">
                   <span className="text-xs">Variation {i + 1}</span>
                   <span className="flex gap-1.5">
-                    <button type="button" aria-label="Download (demo)" onClick={() => soon("Download")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Download size={15} /></button>
-                    <button type="button" aria-label="Save (demo)" onClick={() => soon("Save")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Heart size={15} /></button>
+                    <button type="button" aria-label="Download" onClick={() => soon("Download")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Download size={15} /></button>
+                    <button type="button" aria-label="Save" onClick={() => soon("Save")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Heart size={15} /></button>
                   </span>
                 </figcaption>
               </figure>
