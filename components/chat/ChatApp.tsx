@@ -17,7 +17,7 @@ const NOTICE = "Nexora AI Chat isn’t connected to an AI service yet. Your mess
 const item = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-white/10";
 
 export default function ChatApp() {
-  const { points: BALANCE } = usePoints();
+  const { points: BALANCE, refresh } = usePoints();
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -39,6 +39,11 @@ export default function ChatApp() {
     setReady(true);
   }, []);
   useEffect(() => { if (ready) try { localStorage.setItem(KEY, JSON.stringify(convs)); } catch { /* ignore */ } }, [convs, ready]);
+  useEffect(() => { // a message typed on the Home screen arrives as ?q=
+    if (!ready) return;
+    const q = new URLSearchParams(location.search).get("q");
+    if (q) { history.replaceState(null, "", "/dashboard/chat"); send(q); }
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
   const active = convs.find((c) => c.id === activeId) ?? null;
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [active?.messages.length, busy]);
 
@@ -52,8 +57,9 @@ export default function ChatApp() {
     try {
       const reply = await sendChatMessage(req); // <-- backend connection point (lib/chat/api.ts)
       push(id, { id: uid(), role: "assistant", content: reply, ts: Date.now() });
+      refresh(); // update the points in the header right away
     } catch (e) {
-      push(id, { id: uid(), role: "system", content: e instanceof NotConnectedError ? NOTICE : "Something went wrong. Please try again.", ts: Date.now() });
+      push(id, { id: uid(), role: "system", content: e instanceof Error ? e.message : "Something went wrong. You weren’t charged.", ts: Date.now() });
     } finally { setBusy(false); }
   }
   function send(raw: string) {
@@ -125,7 +131,7 @@ export default function ChatApp() {
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/5"><Image src="/logo.png" alt="" width={22} height={18} /></div>
                 <div className="min-w-0 max-w-[88%]">
                   <div className={`whitespace-pre-wrap break-words rounded-3xl rounded-tl-lg px-4 py-2.5 ${m.role === "system" ? "border border-dashed border-brand/40 text-muted" : "bg-white/5"}`}>
-                    {m.role === "system" && <b className="mb-1 block text-xs uppercase tracking-wider text-brand">Not connected</b>}{m.content}
+                    {m.role === "system" && <b className="mb-1 block text-xs uppercase tracking-wider text-brand">Notice</b>}{m.content}
                   </div>
                   <div className="mt-1.5 flex gap-1 text-xs text-muted">
                     <button type="button" onClick={() => copy(m)} className="flex items-center gap-1 rounded-lg px-2 py-1 hover:bg-white/10 hover:text-brand">{copied === m.id ? <Check size={13} /> : <Copy size={13} />}{copied === m.id ? "Copied" : "Copy"}</button>
@@ -167,7 +173,7 @@ export default function ChatApp() {
         </div>
         <details className="border-t border-line p-3 text-xs text-muted">
           <summary className="cursor-pointer">AI connection (developer)</summary>
-          <p className="mt-2">Backend connection point: <code>lib/chat/api.ts</code> → <code>sendChatMessage()</code>. The full conversation is sent each time so follow-ups keep their context. Chats are saved on this device only.</p>
+          <p className="mt-2">Messages go to <code>/api/ai/chat</code> with the full conversation so follow-ups keep their context. Chats are also saved on this device, and every answer is saved to your Library.</p>
           {lastReq && <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-white/5 p-2">{JSON.stringify(lastReq, null, 2)}</pre>}
         </details>
       </aside>
