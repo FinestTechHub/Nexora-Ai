@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Check, Image as ImageIcon, MessageSquare, Video } from "lucide-react";
 import Dock from "./Dock";
@@ -19,6 +20,7 @@ const CHIPS = ["Write a 30-second script", "Describe a thumbnail", "Give me 5 vi
 
 export default function HomeScreen() {
   const { points: BALANCE } = usePoints();
+  const router = useRouter();
   const [mode, setMode] = useState<(typeof MODES)[number]>(MODES[0]);
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
@@ -28,6 +30,7 @@ export default function HomeScreen() {
 
   function send() {
     if (!validateInput(mode.slug, text).ok) { setNote("Type something first."); return; }
+    if (mode.slug === "chat") { router.push(`/dashboard/chat?q=${encodeURIComponent(text.trim())}`); return; }
     setNote(`${mode.k} generation isn’t connected yet. Nothing was sent.`);
   }
   const menu = (
@@ -52,7 +55,7 @@ export default function HomeScreen() {
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {CHIPS.map((c) => <button key={c} type="button" onClick={() => setText(c)} className="rounded-full border border-white/10 px-3.5 py-1.5 text-sm text-zinc-400 transition hover:border-white/25 hover:text-zinc-200">{c}</button>)}
         </div>
-        <p role="status" className="mt-5 min-h-[1.25rem] text-xs text-zinc-500">{note}{note.startsWith("Demo") && <> <Link href={`/dashboard/${mode.slug}`} className="text-brand underline">Open {mode.k}</Link></>}</p>
+        <p role="status" className="mt-5 min-h-[1.25rem] text-xs text-zinc-500">{note}{note.includes("connected yet") && <> <Link href={`/dashboard/${mode.slug}`} className="text-brand underline">Open {mode.k}</Link></>}</p>
       </div>
       <Dock value={text} onChange={(v) => { setText(v); setNote(""); }} onSend={send} placeholder={mode.ph} cost={shortPts(model.points)} low={model.points > BALANCE} menu={menu} />
     </div>

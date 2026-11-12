@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import { Clapperboard, Download, Film, Heart, Lightbulb, Mic, PenLine, Play, SearchCheck, Sparkles, Upload, type LucideIcon } from "lucide-react";
+import { Check, Clapperboard, Copy, Download, Film, Heart, Lightbulb, Mic, PenLine, Play, SearchCheck, Sparkles, Upload, type LucideIcon } from "lucide-react";
 import cfgs from "@/lib/studios.json";
 import { buildRequest, checkOutput, demoOutput, validateInput } from "@/lib/ai/engine";
+import { LIVE_TOOLS, toolCost } from "@/lib/ai/cost";
 import StandardsPanel from "./StandardsPanel";
 import ImproveButton from "./ImproveButton";
 import ModelPicker from "./ModelPicker";
@@ -17,35 +18,46 @@ type Cfg = { icon: string; title: string; desc: string; lab: string; max: number
 const ICONS: Record<string, LucideIcon> = { film: Film, mic: Mic, pen: PenLine, seo: SearchCheck, thumb: Clapperboard, bulb: Lightbulb, spark: Sparkles };
 type Out = { kind: string; note?: string; text?: string; items?: string[]; titles?: string[]; description?: string; tags?: string[] };
 
+const asText = (o: Out) => o.kind === "script" ? (o.text ?? "") : o.kind === "list" ? (o.items ?? []).map((x, i) => `${i + 1}. ${x}`).join("\n") : `Titles:\n${(o.titles ?? []).map((x, i) => `${i + 1}. ${x}`).join("\n")}\n\nDescription:\n${o.description ?? ""}\n\nTags: ${(o.tags ?? []).join(", ")}`;
+
 export default function ToolStudio({ slug }: { slug: string }) {
-  const { points: BALANCE } = usePoints();
+  const { points: BALANCE, refresh } = usePoints();
   const c = (cfgs.tools as unknown as Record<string, Cfg>)[slug];
   const Icon = ICONS[c.icon];
+  const live = LIVE_TOOLS.includes(slug); // real AI for text tools; the others still show placeholder results
   const [text, setText] = useState("");
   const [vals, setVals] = useState(c.ch.map((g) => g.o[g.d ?? 0]));
   const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
   const [shown, setShown] = useState({ p: "", v: [] as string[] });
+  const [result, setResult] = useState<Out | null>(null);
+  const [copied, setCopied] = useState(false);
   const [note, setNote] = useState("");
 
-  let cost = c.per100 ? Math.max(1, Math.ceil(text.length / 100)) * c.per100 : c.base ?? 1;
-  c.ch.forEach((g, i) => { cost *= g.m?.[vals[i]] ?? 1; });
-  cost = Math.max(1, Math.round(cost));
+  const values: Record<string, string> = Object.fromEntries(c.ch.map((g, i) => [g.l, vals[i]]));
   const models = modelsFor(slug);
   const [modelId, setModelId] = useState(models?.[0].id ?? "");
   const model = models ? (models.find((m) => m.id === modelId) ?? models[0]) : null;
-  const vi = c.ch.findIndex((g) => g.l === "Variations");
-  if (model) cost = model.points * (vi >= 0 ? Number(vals[vi]) : 1); // points per output × variations
+  const cost = toolCost(slug, values, text, model?.id);
+  const withModel: Record<string, string> = { ...values, ...(model ? { Model: model.id } : {}) };
 
-  function run() {
+  async function run() {
     const v = validateInput(slug, text);
     if (!v.ok) { setNote(v.clarify ?? ""); return; }
-    setNote(""); setStatus("loading");
-    setTimeout(() => { setShown({ p: text, v: vals }); setStatus("done"); }, 1000);
+    setNote(""); setStatus("loading"); setResult(null);
+    if (!live) { setTimeout(() => { setShown({ p: text, v: vals }); setStatus("done"); }, 1000); return; }
+    try {
+      const res = await fetch("/api/ai/tool", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, text, values, modelId: model?.id }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setStatus("idle"); setNote(data.message ?? "Something went wrong. You weren’t charged."); return; }
+      setResult(data.output as Out); setShown({ p: text, v: vals }); setStatus("done");
+      refresh(); // update the points in the header right away
+    } catch { setStatus("idle"); setNote("Couldn’t reach the server. You weren’t charged."); }
   }
   const soon = (w: string) => setNote(`“${w}” will work once AI generation is connected.`);
-  const values: Record<string, string> = { ...Object.fromEntries(c.ch.map((g, i) => [g.l, vals[i]])), ...(model ? { Model: model.id } : {}) };
+  async function copy(o: Out) { try { await navigator.clipboard.writeText(asText(o)); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } }
+
   const sv = Object.fromEntries(c.ch.map((g, i) => [g.l, shown.v[i]]));
-  const eng = (status === "done" ? demoOutput(slug, shown.p, sv) : null) as unknown as Out | null;
+  const eng = (live ? result : status === "done" ? demoOutput(slug, shown.p, sv) : null) as unknown as Out | null;
 
   const canvas = (
     <>
@@ -81,7 +93,11 @@ export default function ToolStudio({ slug }: { slug: string }) {
       )}
       {status === "done" && eng && (
         <div>
-          <p className="mb-3 text-sm text-muted"><b className="text-ink">Demo output.</b> Placeholder text, not written by AI.{eng.note ? ` ${eng.note}` : ""}</p>
+          {live ? (
+            <div className="mb-3 flex items-center justify-between"><span className="text-sm font-semibold">{c.title}</span><button type="button" onClick={() => copy(eng)} className="flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:border-brand hover:text-brand">{copied ? <Check size={13} /> : <Copy size={13} />}{copied ? "Copied" : "Copy"}</button></div>
+          ) : (
+            <p className="mb-3 text-sm text-muted"><b className="text-ink">Demo output.</b> Placeholder text, not written by AI.{eng.note ? ` ${eng.note}` : ""}</p>
+          )}
           {(eng.kind === "script" || eng.kind === "prompt") && <div className="card whitespace-pre-line !p-5 hover:!translate-y-0">{eng.text}</div>}
           {eng.kind === "list" && <ol className="card list-decimal space-y-2 !p-5 !pl-9 hover:!translate-y-0">{eng.items?.map((x) => <li key={x}>{x}</li>)}</ol>}
           {eng.kind === "seo" && (
@@ -91,7 +107,7 @@ export default function ToolStudio({ slug }: { slug: string }) {
               <div><b>Tags</b><div className="mt-1 flex flex-wrap gap-1.5">{eng.tags?.map((x) => <span key={x} className="rounded-full bg-soft px-3 py-1 text-sm text-brand">{x}</span>)}</div></div>
             </div>
           )}
-          <ul className="mt-4 space-y-1 text-sm">{checkOutput(slug, eng, buildRequest(slug, shown.p, sv)).map((k: { ok: boolean; label: string }) => <li key={k.label} className={k.ok ? "text-green-500" : "text-red-400"}>{k.ok ? "✓" : "✗"} {k.label}</li>)}</ul>
+          {!live && <ul className="mt-4 space-y-1 text-sm">{checkOutput(slug, eng, buildRequest(slug, shown.p, sv)).map((k: { ok: boolean; label: string }) => <li key={k.label} className={k.ok ? "text-green-500" : "text-red-400"}>{k.ok ? "✓" : "✗"} {k.label}</li>)}</ul>}
         </div>
       )}
       {status === "done" && <p className="mt-6 text-xs text-muted">Tip: {c.tip}</p>}
@@ -103,14 +119,14 @@ export default function ToolStudio({ slug }: { slug: string }) {
       {c.ch.map((g, i) => <Choice key={g.l} label={g.l} options={g.o} value={vals[i]} onChange={(v) => setVals(vals.map((x, j) => (j === i ? v : x)))} />)}
       <PointsInfo cost={cost} />
       <button type="button" onClick={() => { close(); run(); }} disabled={status === "loading" || cost > BALANCE} className="btn btn-p w-full disabled:opacity-60"><Icon size={18} />{genLabel(c.btn, cost)}</button>
-      <StandardsPanel slug={slug} text={text} values={values} />
+      <StandardsPanel slug={slug} text={text} values={withModel} />
     </>
   );
   return (
     <>
       {models && model && <HeaderSlot><ModelPicker compact models={models} value={model.id} onChange={setModelId} /></HeaderSlot>}
       <StudioShell Icon={Icon} title={c.title} canvas={canvas} options={options} note={note}
-        dock={{ value: text, onChange: setText, onSend: run, placeholder: c.lab + "…", cost: shortPts(cost), low: cost > BALANCE, disabled: status === "loading", top: <ImproveButton inline slug={slug} text={text} setText={setText} values={values} max={c.max} /> }} />
+        dock={{ value: text, onChange: setText, onSend: run, placeholder: c.lab + "…", cost: shortPts(cost), low: cost > BALANCE, disabled: status === "loading", top: <ImproveButton inline slug={slug} text={text} setText={setText} values={withModel} max={c.max} /> }} />
     </>
   );
 }

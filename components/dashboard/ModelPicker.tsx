@@ -18,9 +18,9 @@ export default function ModelPicker({ models, value, onChange, up = false, label
     <ul role="listbox" aria-label="Model" className={`absolute z-50 rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-2xl ${compact ? "left-0 top-full mt-1 w-[min(20rem,86vw)]" : `w-full ${up ? "bottom-full mb-2" : "mt-2"}`}`}>
       {models.map((m) => (
         <li key={m.id} role="option" aria-selected={m.id === cur.id}>
-          <button type="button" onClick={() => { onChange(m.id); setOpen(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-white/10">
+          <button type="button" disabled={m.available === false} onClick={() => { onChange(m.id); setOpen(false); }} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-white/10 disabled:opacity-50 disabled:hover:bg-transparent">
             <span className="min-w-0 flex-1"><b className="block truncate text-sm">{m.name}</b><span className="text-xs text-muted">{m.badge}</span></span>
-            <span className="shrink-0 text-xs font-bold text-brand">{fmtPts(m.points)}</span>
+            <span className="shrink-0 text-xs font-bold text-brand">{m.available === false ? "Soon" : fmtPts(m.points)}</span>
             {m.id === cur.id && <Check size={15} className="shrink-0 text-brand" />}
           </button>
         </li>
