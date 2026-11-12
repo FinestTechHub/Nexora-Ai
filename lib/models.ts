@@ -1,6 +1,6 @@
 import studios from "@/lib/studios.json";
 
-export type Model = { id: string; name: string; badge: string; points: number };
+export type Model = { id: string; name: string; badge: string; points: number; available?: boolean };
 
 /** Models for a tool, or null if the tool has no model catalog. Data lives in lib/studios.json. */
 export function modelsFor(slug: string): Model[] | null {
