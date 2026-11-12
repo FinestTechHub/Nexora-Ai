@@ -6,11 +6,9 @@ export type Conversation = { id: string; title: string; updatedAt: number; messa
 export type ChatRequest = { model: string; system: string; messages: { role: "user" | "assistant"; content: string }[] };
 
 export class NotConnectedError extends Error {}
+export class ChatError extends Error {}
 
-/**
- * Builds the request for the AI service. The FULL conversation history is sent every time so the
- * assistant can answer follow-up questions in context. "system" notices are never sent.
- */
+/** The full conversation is sent every time so the assistant keeps context. "system" notices are never sent. */
 export function buildChatRequest(history: ChatMessage[], model: string): ChatRequest {
   return {
     model,
@@ -20,22 +18,12 @@ export function buildChatRequest(history: ChatMessage[], model: string): ChatReq
 }
 
 /**
- * ============================================================
- *  BACKEND CONNECTION POINT: Nexora AI Chat
- * ============================================================
- *  The AI service will be connected HERE and nowhere else in the UI.
- *  When the backend exists, replace the body below with something like:
- *
- *    const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req) });
- *    if (!res.ok) throw new Error("Request failed");
- *    return (await res.json()).reply as string;
- *
- *  (/api/chat is a future server route that calls the AI provider with a secret key. Never call the
- *  provider directly from the browser.) The UI already handles loading, errors, copy and regenerate.
+ * Sends the conversation to our own server route (app/api/ai/chat/route.ts). That route checks login and points,
+ * calls Gemini with the secret key, and only charges points after a valid answer.
  */
 export async function sendChatMessage(req: ChatRequest): Promise<string> {
-  void req;
-  // Short wait so the loading indicator is visible in this front-end-only build. Remove when connected.
-  await new Promise((r) => setTimeout(r, 700));
-  throw new NotConnectedError("Nexora AI Chat isn’t connected to an AI service yet.");
+  const res = await fetch("/api/ai/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: req.messages, model: req.model }) });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ChatError(data.message ?? "Something went wrong. You weren’t charged.");
+  return data.text as string;
 }
