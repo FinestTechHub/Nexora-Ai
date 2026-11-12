@@ -6,7 +6,8 @@ import { Check, Copy, History, Pencil, Plus, RefreshCw, Trash2, X } from "lucide
 import Dock from "@/components/dashboard/Dock";
 import HeaderSlot from "@/components/dashboard/HeaderSlot";
 import ModelPicker from "@/components/dashboard/ModelPicker";
-import { BALANCE, modelsFor, shortPts } from "@/lib/models";
+import { modelsFor, shortPts } from "@/lib/models";
+import { usePoints } from "@/lib/points/PointsContext";
 import { buildChatRequest, sendChatMessage, NotConnectedError, type ChatMessage, type ChatRequest, type Conversation } from "@/lib/chat/api";
 
 const KEY = "nexora-chats-v1";
@@ -16,6 +17,7 @@ const NOTICE = "Nexora AI Chat isn’t connected to an AI service yet. Your mess
 const item = "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-white/10";
 
 export default function ChatApp() {
+  const { points: BALANCE } = usePoints();
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
