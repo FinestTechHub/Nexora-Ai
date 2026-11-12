@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Creations } from "@/components/dashboard/Account";
+import Library from "@/components/dashboard/Library";
 
 export const metadata: Metadata = { title: "My Creations" };
-export default function Page() { return <Creations />; }
+export default function Page() { return <Library />; }
