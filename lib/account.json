@@ -1,139 +1,65 @@
 {
- "balance": {
-  "points": 420,
-  "monthly": 500
- },
  "plans": [
   {
    "name": "Free",
-   "price": 0,
-   "points": 50,
+   "price": "0",
+   "points": "100 points signup bonus",
    "pop": false,
    "features": [
-    "Core AI tools",
-    "Standard quality",
-    "Community support"
+    "Core AI tools"
    ]
   },
   {
    "name": "Creator",
-   "price": 12,
-   "points": 500,
+   "price": "19.90",
+   "points": "1,200 points per month",
    "pop": true,
    "features": [
-    "All 8 AI tools",
-    "HD quality",
-    "Priority queue",
-    "Email support"
+    "Core AI tools",
+    "Faster generation speeds"
    ]
   },
   {
    "name": "Pro",
-   "price": 29,
-   "points": 1500,
+   "price": "49.00",
+   "points": "3,500 points per month",
    "pop": false,
    "features": [
-    "Everything in Creator",
-    "Longer videos",
-    "Commercial use",
-    "Priority support"
+    "All tools unlocked",
+    "Priority processing"
    ]
   }
  ],
  "packs": [
   {
-   "points": 100,
-   "price": 5
+   "points": 150,
+   "price": "5"
   },
   {
-   "points": 500,
-   "price": 20
+   "points": 700,
+   "price": "20"
   },
   {
-   "points": 1000,
-   "price": 35
-  }
- ],
- "usage": [
-  [
-   "Neon City at Dawn",
-   "Image",
-   "-4"
-  ],
-  [
-   "Product Teaser",
-   "Video",
-   "-8"
-  ],
-  [
-   "Channel Intro Voice",
-   "Voice",
-   "-2"
-  ],
-  [
-   "Script: 5 habits",
-   "Script",
-   "-4"
-  ]
- ],
- "creations": [
-  {
-   "t": "Neon City at Dawn",
-   "k": "Image",
-   "d": "Demo · Today",
-   "g": 0
+   "points": 2100,
+   "price": "50"
   },
   {
-   "t": "Product Teaser",
-   "k": "Video",
-   "d": "Demo · Today",
-   "g": 1
-  },
-  {
-   "t": "Ocean Waves Loop",
-   "k": "Video",
-   "d": "Demo · Yesterday",
-   "g": 2
-  },
-  {
-   "t": "Channel Intro Voice",
-   "k": "Voice",
-   "d": "Demo · Yesterday",
-   "g": 3
-  },
-  {
-   "t": "Robot Reading a Book",
-   "k": "Image",
-   "d": "Demo · This week",
-   "g": 4
-  },
-  {
-   "t": "5 Habits of Creators",
-   "k": "Script",
-   "d": "Demo · This week",
-   "g": 5
-  },
-  {
-   "t": "Minimal Blue Sneaker",
-   "k": "Image",
-   "d": "Demo · Last week",
-   "g": 0
-  },
-  {
-   "t": "Drone Over the Coast",
-   "k": "Video",
-   "d": "Demo · Last week",
-   "g": 2
+   "points": 5000,
+   "price": "100"
   }
  ],
  "faq": [
   {
    "q": "What are points?",
-   "a": "Points are used each time you generate something. Heavier tools, such as video, cost more points than lighter ones, such as scripts."
+   "a": "Points are used each time a tool delivers a result. Heavier tools, such as video, cost more points than lighter ones, such as scripts."
   },
   {
-   "q": "Is the AI connected yet?",
-   "a": "Not yet. This is a design preview with sample data. Real generation will be added when the backend is connected."
+   "q": "Do I lose points if a generation fails?",
+   "a": "No. Points are only taken when a tool returns a valid result. Failed generations cost nothing."
+  },
+  {
+   "q": "How many points do I start with?",
+   "a": "Every new account starts with 100 free points."
   },
   {
    "q": "Can I use my creations commercially?",
@@ -141,15 +67,11 @@
   },
   {
    "q": "How do I get more points?",
-   "a": "Open Pricing & Points to see plans and point packs. Payments aren’t connected in this demo."
+   "a": "Open Pricing & Points to see plans and top-up packs. Online payments are opening soon."
   },
   {
    "q": "Which devices does Nexora Ai support?",
    "a": "The app is planned for Android and iOS, with this web dashboard alongside it."
-  },
-  {
-   "q": "How do I contact support?",
-   "a": "Use the contact form below. In this demo the form doesn’t send anything yet."
   }
  ]
 }

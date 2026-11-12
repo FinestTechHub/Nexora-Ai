@@ -1,5 +1,4 @@
 import studios from "@/lib/studios.json";
-import account from "@/lib/account.json";
 
 export type Model = { id: string; name: string; badge: string; points: number };
 
@@ -8,7 +7,6 @@ export function modelsFor(slug: string): Model[] | null {
   const group = (studios.toolModels as Record<string, string>)[slug];
   return group ? (studios.models as Record<string, Model[]>)[group] : null;
 }
-export const BALANCE: number = account.balance.points; // demo balance from lib/account.json
 export const fmtPts = (n: number) => `${n} ${n === 1 ? "Point" : "Points"}`;
 export const genLabel = (base: string, cost: number) => `${base} • ${fmtPts(cost)}`;
 export const shortPts = (n: number) => `${n} pt${n === 1 ? "" : "s"}`;

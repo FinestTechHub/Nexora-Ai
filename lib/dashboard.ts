@@ -1,4 +1,4 @@
-import { Clapperboard, CreditCard, Film, FolderOpen, Image as ImageIcon, LayoutDashboard, Lightbulb, LifeBuoy, MessageSquare, Mic, PenLine, SearchCheck, Settings, Video, type LucideIcon } from "lucide-react";
+import { Clapperboard, CreditCard, Film, FolderOpen, Image as ImageIcon, LayoutDashboard, Lightbulb, LifeBuoy, MessageSquare, Mic, PenLine, SearchCheck, Settings, ShieldCheck, Video, type LucideIcon } from "lucide-react";
 
 export type DashItem = { slug: string; name: string; desc: string; Icon: LucideIcon };
 export const href = (i: DashItem) => (i.slug ? `/dashboard/${i.slug}` : "/dashboard");
@@ -21,4 +21,5 @@ export const ACCOUNT: DashItem[] = [
   { slug: "settings", name: "Settings", desc: "Profile, preferences and security.", Icon: Settings },
   { slug: "help", name: "Help & Support", desc: "Guides, FAQs and contacting our team.", Icon: LifeBuoy },
 ];
+export const ADMIN: DashItem = { slug: "admin", name: "Admin", desc: "Users, usage and point controls.", Icon: ShieldCheck };
 export const PAGES = [OVERVIEW, CHAT, ...TOOLS, ...ACCOUNT];
