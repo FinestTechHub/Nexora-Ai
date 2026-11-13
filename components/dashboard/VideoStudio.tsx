@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Download, Heart, Play, Upload, Video } from "lucide-react";
-import { Choice, DemoTag } from "./tool-ui";
+import { Choice, DemoTag, Working } from "./tool-ui";
 import StudioShell, { StudioHero } from "./StudioShell";
 import StandardsPanel from "./StandardsPanel";
 import ModelPicker from "./ModelPicker";
@@ -45,7 +45,7 @@ export default function VideoStudio() {
   const canvas = (
     <>
       {status === "idle" && <StudioHero Icon={Video} title="What video should we create?" chips={examples} onChip={setPrompt} />}
-      {status === "loading" && <div className={`animate-pulse rounded-3xl bg-white/5 ${ratios[ratio]}`} />}
+      {status === "loading" && <Working label="Generating video…" />}
       {status === "done" && (
         <div>
           <div className={`relative grid place-items-center overflow-hidden rounded-3xl bg-gradient-to-br from-navy via-blue-700 to-sky ${ratios[shown.r]}`}>

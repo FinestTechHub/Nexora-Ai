@@ -3,8 +3,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, Image as ImageIcon, MessageSquare, Video } from "lucide-react";
+import { Check, Image as ImageIcon, MessageSquare, Paperclip, Video } from "lucide-react";
 import Dock from "./Dock";
+import { useAttachment } from "@/components/chat/useAttachment";
+import { setHandoff } from "@/lib/chat/handoff";
 import HeaderSlot from "./HeaderSlot";
 import ModelPicker from "./ModelPicker";
 import { validateInput } from "@/lib/ai/engine";
@@ -21,6 +23,7 @@ const CHIPS = ["Write a 30-second script", "Describe a thumbnail", "Give me 5 vi
 export default function HomeScreen() {
   const { points: BALANCE } = usePoints();
   const router = useRouter();
+  const attach = useAttachment();
   const [mode, setMode] = useState<(typeof MODES)[number]>(MODES[0]);
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
@@ -29,8 +32,8 @@ export default function HomeScreen() {
   const model = models.find((m) => m.id === ids[mode.slug]) ?? models[0];
 
   function send() {
-    if (!validateInput(mode.slug, text).ok) { setNote("Type something first."); return; }
-    if (mode.slug === "chat") { router.push(`/dashboard/chat?q=${encodeURIComponent(text.trim())}`); return; }
+    if (!(mode.slug === "chat" && attach.file) && !validateInput(mode.slug, text).ok) { setNote("Type something first."); return; }
+    if (mode.slug === "chat") { setHandoff({ text: text.trim(), file: attach.file }); attach.clear(); router.push("/dashboard/chat?q=1"); return; }
     setNote(`${mode.k} generation isn’t connected yet. Nothing was sent.`);
   }
   const menu = (
@@ -40,7 +43,7 @@ export default function HomeScreen() {
           <m.Icon size={16} />{m.k}{mode.k === m.k && <Check size={14} className="ml-auto text-brand" />}
         </button>
       ))}
-      <p className="px-3 py-2 text-xs text-zinc-500">Attachments coming soon</p>
+      {mode.slug === "chat" ? <button type="button" onClick={attach.openSheet} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-white/10"><Paperclip size={16} />Attach a file</button> : <p className="px-3 py-2 text-xs text-zinc-500">Attachments are for Chat</p>}
     </>
   );
   return (
@@ -57,7 +60,8 @@ export default function HomeScreen() {
         </div>
         <p role="status" className="mt-5 min-h-[1.25rem] text-xs text-zinc-500">{note}{note.includes("connected yet") && <> <Link href={`/dashboard/${mode.slug}`} className="text-brand underline">Open {mode.k}</Link></>}</p>
       </div>
-      <Dock value={text} onChange={(v) => { setText(v); setNote(""); }} onSend={send} placeholder={mode.ph} cost={shortPts(model.points)} low={model.points > BALANCE} menu={menu} />
+      <Dock value={text} onChange={(v) => { setText(v); setNote(""); }} onSend={send} placeholder={mode.ph} cost={shortPts(model.points)} low={model.points > BALANCE} menu={menu} above={mode.slug === "chat" ? attach.chip : null} canSendEmpty={mode.slug === "chat" && Boolean(attach.file)} />
+      {attach.ui}
     </div>
   );
 }

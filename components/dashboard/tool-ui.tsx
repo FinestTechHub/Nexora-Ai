@@ -37,3 +37,15 @@ export function Choice<T extends string>({ label, options, value, onChange }: { 
 }
 
 export const DemoTag = () => <span className="rounded-full bg-black/50 px-2.5 py-0.5 text-[11px] font-bold tracking-wider text-white">DEMO PREVIEW</span>;
+
+/** Animated "working" indicator with a label that says what is happening. */
+export function Working({ label }: { label: string }) {
+  return (
+    <div role="status" aria-live="polite" className="grid min-h-[40dvh] place-items-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex gap-1.5">{[0, 150, 300].map((d) => <i key={d} className="h-2.5 w-2.5 animate-bounce rounded-full bg-brand" style={{ animationDelay: `${d}ms` }} />)}</div>
+        <p className="text-sm font-medium text-muted">{label}</p>
+      </div>
+    </div>
+  );
+}

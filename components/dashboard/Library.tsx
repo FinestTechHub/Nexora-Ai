@@ -14,8 +14,8 @@ export default function Library() {
   const [f, setF] = useState<(typeof FILTERS)[number]>("All");
   useEffect(() => {
     if (!isConfigured) { setItems([]); return; }
-    createClient().from("generations").select("id, tool, model, prompt, result, status, points_charged, created_at").order("created_at", { ascending: false }).limit(60)
-      .then(({ data }) => setItems((data as Gen[]) ?? []));
+    createClient().from("generations").select("id, tool, model, prompt, result, status, points_charged, created_at").neq("status", "failed").order("created_at", { ascending: false }).limit(60)
+      .then(({ data }) => setItems(((data as Gen[]) ?? []).filter((g) => g.status !== "failed")));
   }, []);
   const shown = (items ?? []).filter((g) => f === "All" || group(g.tool) === f);
   return (

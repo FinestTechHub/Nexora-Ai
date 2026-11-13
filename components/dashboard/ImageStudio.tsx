@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Download, Heart, Image as ImageIcon, RefreshCw } from "lucide-react";
-import { Choice, DemoTag, GRADS } from "./tool-ui";
+import { Choice, DemoTag, GRADS, Working } from "./tool-ui";
 import StudioShell, { StudioHero } from "./StudioShell";
 import StandardsPanel from "./StandardsPanel";
 import ModelPicker from "./ModelPicker";
@@ -44,7 +44,7 @@ export default function ImageStudio() {
   const canvas = (
     <>
       {status === "idle" && <StudioHero Icon={ImageIcon} title="What image should we create?" chips={examples} onChip={setPrompt} />}
-      {status === "loading" && <div className="grid grid-cols-2 gap-3">{Array.from({ length: Number(count) }).map((_, i) => <div key={i} className={`animate-pulse rounded-2xl bg-white/5 ${ratios[ratio]}`} />)}</div>}
+      {status === "loading" && <Working label="Generating image…" />}
       {status === "done" && (
         <div>
           <div className="mb-3 flex items-center justify-between text-sm"><b>{shown.n} demo {shown.n > 1 ? "previews" : "preview"} · {shown.s}</b><button type="button" onClick={generate} className="flex items-center gap-1.5 font-semibold text-brand"><RefreshCw size={15} />Regenerate</button></div>

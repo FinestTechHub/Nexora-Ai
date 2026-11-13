@@ -12,7 +12,10 @@ import PointsInfo from "./PointsInfo";
 import StudioShell, { StudioHero } from "./StudioShell";
 import { genLabel, modelsFor, shortPts } from "@/lib/models";
 import { usePoints } from "@/lib/points/PointsContext";
-import { Choice, DemoTag, GRADS } from "./tool-ui";
+import Link from "next/link";
+import { Choice, DemoTag, GRADS, Working } from "./tool-ui";
+
+const HINTS: Record<string, string> = { script: "Script Writer: enter a video topic, not a question. For general questions, use Nexora Chat.", ideas: "Content Ideas: enter a niche or topic, not a question. For general questions, use Nexora Chat.", "youtube-seo": "YouTube SEO: enter your video topic, not a question. For general questions, use Nexora Chat." };
 
 type Cfg = { icon: string; title: string; desc: string; lab: string; max: number; ph: string; ex: string[]; what: string; upload?: string; btn: string; empty: string; tip: string; out: "video" | "audio" | "text" | "seo" | "thumb" | "ideas" | "prompt"; base?: number; per100?: number; ch: { l: string; o: string[]; d?: number; m?: Record<string, number> }[] };
 const ICONS: Record<string, LucideIcon> = { film: Film, mic: Mic, pen: PenLine, seo: SearchCheck, thumb: Clapperboard, bulb: Lightbulb, spark: Sparkles };
@@ -32,6 +35,7 @@ export default function ToolStudio({ slug }: { slug: string }) {
   const [result, setResult] = useState<Out | null>(null);
   const [copied, setCopied] = useState(false);
   const [note, setNote] = useState("");
+  const [notice, setNotice] = useState("");
 
   const values: Record<string, string> = Object.fromEntries(c.ch.map((g, i) => [g.l, vals[i]]));
   const models = modelsFor(slug);
@@ -43,12 +47,12 @@ export default function ToolStudio({ slug }: { slug: string }) {
   async function run() {
     const v = validateInput(slug, text);
     if (!v.ok) { setNote(v.clarify ?? ""); return; }
-    setNote(""); setStatus("loading"); setResult(null);
+    setNote(""); setNotice(""); setStatus("loading"); setResult(null);
     if (!live) { setTimeout(() => { setShown({ p: text, v: vals }); setStatus("done"); }, 1000); return; }
     try {
       const res = await fetch("/api/ai/tool", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug, text, values, modelId: model?.id }) });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setStatus("idle"); setNote(data.message ?? "Something went wrong. You weren’t charged."); return; }
+      if (!res.ok) { setStatus("idle"); if (data.error === "off_topic") setNotice(data.message); else setNote(data.message ?? "Something went wrong. You weren’t charged."); return; }
       setResult(data.output as Out); setShown({ p: text, v: vals }); setStatus("done");
       refresh(); // update the points in the header right away
     } catch { setStatus("idle"); setNote("Couldn’t reach the server. You weren’t charged."); }
@@ -61,8 +65,9 @@ export default function ToolStudio({ slug }: { slug: string }) {
 
   const canvas = (
     <>
-      {status === "idle" && <StudioHero Icon={Icon} title={c.empty} chips={c.ex} onChip={setText} />}
-      {status === "loading" && <div className="h-64 animate-pulse rounded-3xl bg-white/5" />}
+      {status === "idle" && notice && <div className="mt-6 rounded-3xl border border-brand/30 bg-soft p-5 text-sm"><p>{notice}</p><Link href="/dashboard/chat" className="btn btn-p mt-4 !py-2 text-sm">Open Nexora Chat</Link></div>}
+      {status === "idle" && !notice && <StudioHero Icon={Icon} title={c.empty} chips={c.ex} onChip={setText} />}
+      {status === "loading" && <Working label={c.out === "video" ? "Generating video…" : c.out === "audio" ? "Generating audio…" : c.out === "thumb" ? "Generating image…" : "Writing…"} />}
       {status === "done" && c.out === "video" && (
         <div>
           <div className="relative grid aspect-video place-items-center rounded-3xl bg-gradient-to-br from-navy via-blue-700 to-sky"><div className="absolute left-4 top-4"><DemoTag /></div><button type="button" aria-label="Play" onClick={() => soon("Playback")} className="grid h-16 w-16 place-items-center rounded-full bg-white/25 text-white backdrop-blur"><Play size={28} fill="currentColor" /></button></div>
@@ -125,7 +130,7 @@ export default function ToolStudio({ slug }: { slug: string }) {
   return (
     <>
       {models && model && <HeaderSlot><ModelPicker compact models={models} value={model.id} onChange={setModelId} /></HeaderSlot>}
-      <StudioShell Icon={Icon} title={c.title} canvas={canvas} options={options} note={note}
+      <StudioShell Icon={Icon} title={c.title} canvas={canvas} options={options} note={note} hint={live ? HINTS[slug] : undefined}
         dock={{ value: text, onChange: setText, onSend: run, placeholder: c.lab + "…", cost: shortPts(cost), low: cost > BALANCE, disabled: status === "loading", top: <ImproveButton inline slug={slug} text={text} setText={setText} values={withModel} max={c.max} /> }} />
     </>
   );

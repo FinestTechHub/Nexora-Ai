@@ -18,7 +18,7 @@ export default function PromptBox() {
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {modes.map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${mode === m ? "border-brand bg-brand text-white" : "border-line text-muted hover:border-brand"}`}>{m}</button>)}
-        <button type="button" onClick={() => setNote(text.trim() ? `Demo only: ${mode} generation isn’t connected yet. Your prompt wasn’t sent anywhere.` : "Please type a prompt first.")} className="btn btn-p ml-auto !py-2.5 text-sm"><Sparkles size={16} />Generate</button>
+        <button type="button" onClick={() => setNote(text.trim() ? `${mode} generation isn’t connected yet. Your prompt wasn’t sent anywhere.` : "Please type a prompt first.")} className="btn btn-p ml-auto !py-2.5 text-sm"><Sparkles size={16} />Generate</button>
       </div>
       <p role="status" className="mt-3 min-h-[1.25rem] text-sm text-muted">{note}</p>
     </div>

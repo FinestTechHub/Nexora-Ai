@@ -6,7 +6,7 @@ import Dock from "./Dock";
 type DockProps = Omit<React.ComponentProps<typeof Dock>, "onOptions">;
 
 // App-style create screen: result canvas on top, floating dock at the bottom, settings in a bottom sheet.
-export default function StudioShell({ Icon, title, canvas, options, dock, note }: { Icon: LucideIcon; title: string; canvas: React.ReactNode; options: (close: () => void) => React.ReactNode; dock: DockProps; note?: string }) {
+export default function StudioShell({ Icon, title, canvas, options, dock, note, hint }: { Icon: LucideIcon; title: string; canvas: React.ReactNode; options: (close: () => void) => React.ReactNode; dock: DockProps; note?: string; hint?: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="relative flex h-full flex-col">
@@ -17,6 +17,7 @@ export default function StudioShell({ Icon, title, canvas, options, dock, note }
         </div>
       </div>
       {note && <p role="status" className="px-6 pb-2 text-center text-xs text-zinc-400">{note}</p>}
+      {hint && !note && <p className="px-6 pb-1.5 text-center text-[11px] text-zinc-500">{hint}</p>}
       <Dock {...dock} onOptions={() => setOpen(true)} />
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setOpen(false)}>
