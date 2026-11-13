@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { generateText, MODELS } from "@/lib/ai/gemini";
+import { generateText } from "@/lib/ai/gemini";
 import { IMPROVE_COST } from "@/lib/ai/cost";
 import { IMPROVE_SYSTEM } from "@/lib/ai/prompts";
 import { fail, handle, requireUser } from "@/lib/ai/route-helpers";
 import { runPaidGeneration } from "@/lib/points/server";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 const FOR: Record<string, string> = { image: "an AI image generator", video: "an AI video generator", "image-to-video": "an image-to-video tool (describe only the motion)", script: "an AI script writer (this is the video topic)", ideas: "a content-ideas tool (this is the niche or topic)", "youtube-seo": "a YouTube SEO tool (this is the video topic)", chat: "an AI chat assistant" };
 
@@ -26,14 +26,14 @@ export async function POST(req: Request) {
 
   try {
     if (IMPROVE_COST <= 0) { // free: no points involved
-      const out = clean(await generateText({ model: MODELS.fast, system: IMPROVE_SYSTEM, turns, maxOutputTokens: 1024 }));
+      const out = clean(await generateText({ system: IMPROVE_SYSTEM, turns, maxOutputTokens: 1024, chain: "fast" }));
       if (!out) return fail(502, "empty", "The AI returned an empty answer. You weren’t charged.");
       return NextResponse.json({ text: out });
     }
     let out = "";
     const paid = await runPaidGeneration({
-      userId: auth.userId, tool: "improve", model: MODELS.fast, prompt: text.slice(0, 500), cost: IMPROVE_COST,
-      produce: async () => { out = clean(await generateText({ model: MODELS.fast, system: IMPROVE_SYSTEM, turns, maxOutputTokens: 1024 })); return { text: out }; },
+      userId: auth.userId, tool: "improve", model: "gemini-3.5-flash-lite", prompt: text.slice(0, 500), cost: IMPROVE_COST,
+      produce: async () => { out = clean(await generateText({ system: IMPROVE_SYSTEM, turns, maxOutputTokens: 1024, chain: "fast" })); return { text: out }; },
       isValid: (r) => r.text.length > 0,
     });
     if (paid.status === "unpaid") return fail(402, "insufficient_points", "You don’t have enough points.");
