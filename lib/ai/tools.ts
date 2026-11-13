@@ -1,6 +1,6 @@
 import { buildRequest } from "@/lib/ai/engine";
-import { AIError, generateText, MODELS } from "./gemini";
-import { TOOL_SYSTEM, toolUserPrompt } from "./prompts";
+import { AIError, generateText } from "./gemini";
+import { OFF_TOPIC_MESSAGES, TOOL_SYSTEM, toolUserPrompt } from "./prompts";
 
 export type Output =
   | { kind: "script"; text: string }
@@ -50,7 +50,8 @@ export async function runTool(slug: string, text: string, v: Record<string, stri
   const base = toolUserPrompt(slug, text, v, c);
   let user = base;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await generateText({ model: MODELS.text, system: TOOL_SYSTEM[slug], turns: [{ role: "user", content: user }], maxOutputTokens: slug === "script" ? 6144 : 3072 });
+    const raw = await generateText({ system: TOOL_SYSTEM[slug], turns: [{ role: "user", content: user }], maxOutputTokens: slug === "script" ? 6144 : 3072, chain: "text" });
+    if (/^\s*OFF_TOPIC\b/i.test(raw)) throw new AIError("off_topic", OFF_TOPIC_MESSAGES[slug] ?? "Please enter a topic for this tool.", 422); // not a task for this tool: no result, no charge
     const p = parse(slug, raw, c, attempt === 1);
     if (p.ok) return p.out;
     user = `${base}\n\nYour previous answer broke a rule: ${p.problem}. Write it again and follow every rule exactly.`;
