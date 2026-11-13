@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
  */
 export class InsufficientPointsError extends Error {}
 
-function admin() {
+export function admin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("Server keys are not set.");
   return createClient(url, key, { auth: { persistSession: false } });
@@ -25,7 +25,7 @@ export async function runPaidGeneration<T>(a: { userId: string; tool: string; mo
     result = await a.produce();
     if (!a.isValid(result)) throw new Error("The model returned no valid output.");
   } catch (e) {
-    await db.from("generations").insert({ user_id: a.userId, tool: a.tool, model: a.model, prompt: a.prompt, status: "failed", points_charged: 0, error: e instanceof Error ? e.message : String(e) });
+    console.error(`Generation failed for ${a.tool}:`, e instanceof Error ? e.message : e); // failures are never saved to the Library
     throw e;
   }
   const { data, error } = await db.rpc("complete_generation", { p_user_id: a.userId, p_tool: a.tool, p_model: a.model, p_prompt: a.prompt, p_result: result, p_amount: a.cost });
