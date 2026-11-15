@@ -3,10 +3,10 @@ import { GLOBAL_RULES, TOOL_RULES } from "@/lib/ai/engine";
 export type ChatRole = "user" | "assistant" | "system";
 export type ChatMessage = {
   id: string; role: ChatRole; content: string; ts: number;
-  status?: "sending" | "failed";                       // user messages only; cleared when the AI answers
+  status?: "sending" | "sent" | "failed";             // user messages: Sending… then Sent while the AI works; cleared when it answers
   retryFor?: string;                                   // on an error notice: the user message to retry
   feedback?: "up" | "down";                            // thumbs on an AI answer
-  attachment?: { name: string; size: number; kind: "image" | "video" | "document" }; // metadata only, the file itself is never stored
+  attachment?: { name: string; size: number; kind: "image" | "video" | "document"; type?: string; path?: string; expiresAt?: string | null }; // images are saved privately (path); videos and documents are never stored
 };
 export type Conversation = { id: string; title: string; updatedAt: number; messages: ChatMessage[] };
 export type ChatRequest = { model: string; system: string; messages: { role: "user" | "assistant"; content: string }[] };
