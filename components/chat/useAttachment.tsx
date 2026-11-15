@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FileText, Image as ImageIcon, Video, X } from "lucide-react";
+import { compressImage } from "@/lib/chat/attachments";
 import { ACCEPT, FREE, UPGRADED, kindOf, limitMessage, limitsFor, mb, mimeOf, type Kind, type Quota } from "@/lib/uploads/limits";
 
 const OPTIONS: { k: Kind; label: string; hint: string; Icon: typeof ImageIcon }[] = [
@@ -47,11 +48,13 @@ export function useAttachment() {
     setSheet(true); setErr("");
     fetch("/api/uploads/quota").then((r) => (r.ok ? r.json() : null)).then((q) => { if (q) setQuota(q as Quota); }).catch(() => {});
   }
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
+  async function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = e.target.files?.[0];
     e.target.value = ""; setSheet(false);
-    if (!f) return;
-    if (!kindOf(mimeOf(f.name, f.type))) { setErr("That file type isn’t supported. Use an image, a short video, or a PDF, TXT, MD or CSV document."); return; }
+    if (!picked) return;
+    const kind = kindOf(mimeOf(picked.name, picked.type));
+    if (!kind) { setErr("That file type isn’t supported. Use an image, a short video, or a PDF, TXT, MD or CSV document."); return; }
+    const f = kind === "image" ? await compressImage(picked) : picked; // photos are shrunk first (about 150-250 KB)
     if (quota) { const lim = limitsFor(quota.upgraded); if (f.size > lim.maxFile || quota.used + f.size > lim.daily) { setLimit({ upgraded: quota.upgraded }); return; } }
     else if (f.size > UPGRADED.maxFile) { setLimit({ upgraded: false }); return; }
     setErr(""); setLimit(null); setFile(f);
@@ -83,5 +86,5 @@ export function useAttachment() {
   const chip = limit ? <UpgradeCard upgraded={limit.upgraded} onClose={() => setLimit(null)} />
     : err ? <p role="alert" className="rounded-xl bg-zinc-900 px-3 py-2 text-xs text-red-400">{err}</p>
     : file ? <FileChip file={file} onRemove={() => setFile(null)} /> : null;
-  return { file, clear: () => { setFile(null); setLimit(null); setErr(""); }, openSheet, ui, chip, showLimit: (upgraded: boolean) => { setFile(null); setLimit({ upgraded }); } };
+  return { file, setFile, clear: () => { setFile(null); setLimit(null); setErr(""); }, openSheet, ui, chip, showLimit: (upgraded: boolean) => { setFile(null); setLimit({ upgraded }); } };
 }
