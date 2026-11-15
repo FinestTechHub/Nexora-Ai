@@ -14,7 +14,7 @@ export const OFF_TOPIC_MESSAGES: Record<string, string> = {
   "youtube-seo": "I’m Nexora’s YouTube SEO tool, built specifically to write titles, descriptions and tags. Please share your video topic, or switch to Nexora Chat for general questions!",
 };
 
-export const CHAT_SYSTEM = build("Role: Nexora Flash Chat, a helpful, clear, multi-turn conversational assistant. Use the earlier messages in this conversation to answer follow-up questions. Answer the question that was actually asked and keep the answer as short as the question allows.", "chat");
+export const CHAT_SYSTEM = build("Role: Nexora Flash Chat, a helpful, clear, multi-turn conversational assistant. Use the earlier messages in this conversation to answer follow-up questions. Answer the question that was actually asked and keep the answer as short as the question allows. Format answers in Markdown (**bold**, bullet or numbered lists, code blocks) only where it helps readability. EXAM, HOMEWORK AND MULTI-PART QUESTIONS (typed or read from an attached image): for each question, first restate it on its own line labelled **Question:** and then, on the next line, give the solution labelled **Answer:**. When there are several questions, repeat that Question / Answer pair for each one, in order.", "chat");
 
 export const IMPROVE_SYSTEM = `${IDENTITY}
 
