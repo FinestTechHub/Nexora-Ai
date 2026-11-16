@@ -1,5 +1,5 @@
 import { buildRequest } from "@/lib/ai/engine";
-import { AIError, generateText } from "./gemini";
+import { AIError, generateText, type ChainName } from "./gemini";
 import { OFF_TOPIC_MESSAGES, TOOL_SYSTEM, toolUserPrompt } from "./prompts";
 
 export type Output =
@@ -45,12 +45,12 @@ function parse(slug: string, raw: string, c: C, final: boolean): Parsed {
 }
 
 /** Runs one text tool. Tries up to twice so the answer follows the quantity and format rules. Throws if no valid result. */
-export async function runTool(slug: string, text: string, v: Record<string, string>): Promise<Output> {
+export async function runTool(slug: string, text: string, v: Record<string, string>, chain: ChainName = "text"): Promise<Output> {
   const c = buildRequest(slug, text, v).constraints as unknown as C;
   const base = toolUserPrompt(slug, text, v, c);
   let user = base;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const raw = await generateText({ system: TOOL_SYSTEM[slug], turns: [{ role: "user", content: user }], maxOutputTokens: slug === "script" ? 6144 : 3072, chain: "text" });
+    const raw = await generateText({ system: TOOL_SYSTEM[slug], turns: [{ role: "user", content: user }], maxOutputTokens: slug === "script" ? 6144 : 3072, chain });
     if (/^\s*OFF_TOPIC\b/i.test(raw)) throw new AIError("off_topic", OFF_TOPIC_MESSAGES[slug] ?? "Please enter a topic for this tool.", 422); // not a task for this tool: no result, no charge
     const p = parse(slug, raw, c, attempt === 1);
     if (p.ok) return p.out;

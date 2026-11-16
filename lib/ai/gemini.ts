@@ -8,8 +8,13 @@ export const MODELS = {
 
 // Fallback chains: if a model is overloaded (503/429), too slow, or missing, the next one answers instantly.
 // "think" keeps thinking short so answers come back in a couple of seconds. (3.8 Flash can't be set to MINIMAL, so it uses LOW.)
-type Step = { model: string; think?: string };
-const CHAINS: Record<"text" | "fast", Step[]> = {
+type Step = { model: string; think?: string; ms?: number };
+export type ChainName = "text" | "fast" | "nexora1" | "flash";
+const CHAINS: Record<ChainName, Step[]> = {
+  // Nexora 1.0: fast and cheap. Only Flash-Lite models, never the expensive ones.
+  nexora1: [{ model: "gemini-3.1-flash-lite", think: "MINIMAL", ms: 8000 }, { model: "gemini-3.5-flash-lite", ms: 10000 }],
+  // Nexora Flash: 3.6 first so it answers in 1-2 seconds, 3.8 and Flash-Lite only as backups.
+  flash: [{ model: "gemini-3.6-flash", think: "LOW", ms: 10000 }, { model: "gemini-3.8-flash", think: "LOW", ms: 12000 }, { model: "gemini-3.5-flash-lite", ms: 10000 }],
   text: [{ model: MODELS.text, think: "LOW" }, { model: "gemini-3.6-flash", think: "MINIMAL" }, { model: "gemini-3.5-flash-lite" }],
   fast: [{ model: MODELS.fast }, { model: "gemini-3.6-flash", think: "MINIMAL" }],
 };
@@ -75,13 +80,13 @@ async function callOnce(step: Step, o: { system: string; turns: Turn[]; maxOutpu
 }
 
 /** Returns the model's text, or throws AIError. An empty answer is a failure (so no points are charged). */
-export async function generateText(o: { system: string; turns: Turn[]; maxOutputTokens?: number; chain?: "text" | "fast" }): Promise<string> {
+export async function generateText(o: { system: string; turns: Turn[]; maxOutputTokens?: number; chain?: ChainName }): Promise<string> {
   const steps = CHAINS[o.chain ?? "text"], start = Date.now();
   let last: unknown;
   for (let i = 0; i < steps.length; i++) {
     const left = BUDGET_MS - (Date.now() - start);
     if (left < 3000) break;
-    try { return await callOnce(steps[i], o, Math.min(PER_ATTEMPT_MS[i] ?? 15000, left)); }
+    try { return await callOnce(steps[i], o, Math.min(steps[i].ms ?? PER_ATTEMPT_MS[i] ?? 15000, left)); }
     catch (e) {
       last = e;
       console.warn(`Gemini ${steps[i].model} failed (${statusOf(e) ?? (e instanceof Error ? e.message : "unknown")}).${shouldFallback(e) && i < steps.length - 1 ? " Trying the next model." : ""}`);
