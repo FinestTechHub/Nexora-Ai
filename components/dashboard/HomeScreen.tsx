@@ -48,7 +48,7 @@ export default function HomeScreen() {
   );
   return (
     <div className="flex h-full flex-col">
-      <HeaderSlot><ModelPicker compact models={models} value={model.id} onChange={(id) => setIds({ ...ids, [mode.slug]: id })} /></HeaderSlot>
+      <HeaderSlot><ModelPicker compact chat={mode.slug === "chat"} models={models} value={model.id} onChange={(id) => setIds({ ...ids, [mode.slug]: id })} /></HeaderSlot>
       <div className="flex flex-1 flex-col items-center justify-center px-6 pb-10 text-center">
         <div className="relative mb-6">
           <div className="absolute inset-0 -z-10 scale-[2.2] rounded-full bg-brand/40 blur-3xl" />
@@ -60,7 +60,7 @@ export default function HomeScreen() {
         </div>
         <p role="status" className="mt-5 min-h-[1.25rem] text-xs text-zinc-500">{note}{note.includes("connected yet") && <> <Link href={`/dashboard/${mode.slug}`} className="text-brand underline">Open {mode.k}</Link></>}</p>
       </div>
-      <Dock value={text} onChange={(v) => { setText(v); setNote(""); }} onSend={send} placeholder={mode.ph} cost={shortPts(model.points)} low={model.points > BALANCE} menu={menu} above={mode.slug === "chat" ? attach.chip : null} canSendEmpty={mode.slug === "chat" && Boolean(attach.file)} />
+      <Dock value={text} onChange={(v) => { setText(v); setNote(""); }} onSend={send} placeholder={mode.ph} cost={mode.slug === "chat" && model.freeDaily ? undefined : shortPts(model.points)} low={!(mode.slug === "chat" && model.freeDaily) && model.points > BALANCE} menu={menu} above={mode.slug === "chat" ? attach.chip : null} canSendEmpty={mode.slug === "chat" && Boolean(attach.file)} />
       {attach.ui}
     </div>
   );
