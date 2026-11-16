@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cleanValues, LIVE_TOOLS, toolCost } from "@/lib/ai/cost";
 import { validateInput } from "@/lib/ai/engine";
 import { fail, handle, requireUser } from "@/lib/ai/route-helpers";
+import type { ChainName } from "@/lib/ai/gemini";
 import { runTool, type Output } from "@/lib/ai/tools";
 import { modelsFor } from "@/lib/models";
 import { runPaidGeneration } from "@/lib/points/server";
@@ -31,7 +32,7 @@ export async function POST(req: Request) {
     let output: Output | null = null;
     const paid = await runPaidGeneration({
       userId: auth.userId, tool: slug, model: model?.id ?? "gemini-text", prompt: text.slice(0, 500), cost,
-      produce: async () => { output = await runTool(slug, text, values); return output; },
+      produce: async () => { output = await runTool(slug, text, values, (model?.chain ?? "text") as ChainName); return output; },
       isValid: (r) => Boolean(r),
     });
     if (paid.status === "unpaid") return fail(402, "insufficient_points", "Your points ran out while this was generating. The result was saved to your Library as unpaid.");
