@@ -388,16 +388,25 @@
   ],
   "text": [
    {
-    "id": "gemini-3.8-flash",
-    "name": "Nexora Flash (Gemini 3.8 Flash)",
+    "id": "nexora-1.0",
+    "name": "Nexora 1.0",
     "points": 1,
-    "badge": "Lightning Fast"
+    "badge": "Fast everyday assistant",
+    "freeDaily": 12,
+    "chain": "nexora1"
+   },
+   {
+    "id": "nexora-flash",
+    "name": "Nexora Flash",
+    "points": 1,
+    "badge": "Deeper reasoning & analysis",
+    "chain": "flash"
    },
    {
     "id": "claude-3-5-sonnet-latest",
-    "name": "Nexora Pro (Claude 3.5 Sonnet)",
+    "name": "Nexora Pro",
     "points": 3,
-    "badge": "Deep Storytelling",
+    "badge": "Deep storytelling",
     "available": false
    }
   ]
