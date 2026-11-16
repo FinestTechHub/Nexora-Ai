@@ -18,6 +18,7 @@ import { buildChatRequest, sendChatMessage, ChatError, type ChatMessage, type Ch
 
 const KEY = "nexora-chats-v1";
 const SUGGESTED = ["Give me 5 video ideas about budget travel", "Write a 30-second script about morning routines", "Explain what an API is in two sentences"];
+const NOTICE_12 = "You’ve used your 12 free daily messages on Nexora 1.0. Continuing will use 1 pt per message, or you can switch models anytime.";
 const uid = () => Math.random().toString(36).slice(2, 10);
 // Error notices and in-flight messages are never saved on the device.
 const savable = (cs: Conversation[]) => cs.map((c) => ({ ...c, messages: c.messages.filter((m) => m.role !== "system" && m.status !== "sending") }));
@@ -37,11 +38,21 @@ export default function ChatApp() {
   const [delId, setDelId] = useState<string | null>(null);
   const [copied, setCopied] = useState("");
   const [toast, setToast] = useState("");
+  const [freeLeft, setFreeLeft] = useState<number | null>(null); // free Nexora 1.0 messages left today (never shown as a counter)
   const [lastReq, setLastReq] = useState<ChatRequest | null>(null);
   const attach = useAttachment();
   const models = modelsFor("chat")!;
   const [modelId, setModelId] = useState(models[0].id);
   const model = models.find((m) => m.id === modelId) ?? models[0]; // points per message
+  const isFree1 = Boolean(model.freeDaily) && (freeLeft ?? 1) > 0; // a free Nexora 1.0 message needs no points
+  const needsPts = !isFree1;
+  async function loadFree() { // quietly reads today's free messages left, so the send button can show "1 pt" from message 13
+    if (!isConfigured || !model.freeDaily) return;
+    const { data } = await createClient().from("nexora1_usage").select("count, window_start").maybeSingle();
+    const fresh = !data || Date.parse(data.window_start) <= Date.now() - 86400000;
+    setFreeLeft(Math.max(0, model.freeDaily - (fresh ? 0 : Number(data?.count ?? 0))));
+  }
+  useEffect(() => { if (ready) loadFree(); }, [ready, modelId]); // eslint-disable-line react-hooks/exhaustive-deps
   const endRef = useRef<HTMLDivElement>(null);
   const files = useRef<Record<string, File>>({}); // attachments live in memory only, so retry and edit can reuse them
   const press = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,10 +102,12 @@ export default function ChatApp() {
     // "Sending…" shows for a moment, then it becomes "Sent" and "Thinking…" starts.
     const t = setTimeout(() => { setStatus(id, userMsgId, "sent", "sending"); setThinking(true); }, 600);
     try {
-      const reply = await request;
+      const r = await request;
+      const reply = r.text;
       clearTimeout(t);
-      patch(id, (c) => ({ ...c, updatedAt: Date.now(), messages: [...c.messages.map((m) => (m.id === userMsgId ? { ...m, status: undefined } : m)), { id: uid(), role: "assistant", content: reply, ts: Date.now() }] }));
+      patch(id, (c) => ({ ...c, updatedAt: Date.now(), messages: [...c.messages.map((m) => (m.id === userMsgId ? { ...m, status: undefined } : m)), { id: uid(), role: "assistant", content: reply, ts: Date.now(), notice: r.limitReached ? NOTICE_12 : undefined }] }));
       refresh(); // update the points in the header right away
+      if (typeof r.freeLeft === "number") setFreeLeft(r.freeLeft);
     } catch (e) {
       clearTimeout(t);
       const err = e instanceof ChatError ? e : null;
@@ -106,7 +119,7 @@ export default function ChatApp() {
     if (busy) return;
     const file = fileArg !== undefined ? fileArg : attach.file;
     const t = raw.trim();
-    if ((!t && !file) || model.points > BALANCE) return;
+    if ((!t && !file) || (needsPts && model.points > BALANCE)) return;
     const kind = file ? kindOf(mimeOf(file.name, file.type)) ?? "document" : null;
     const msg: ChatMessage = { id: uid(), role: "user", content: t || "Please look at the attached file and tell me what it contains.", ts: Date.now(), status: "sending",
       attachment: file && kind ? { name: file.name, size: file.size, kind, type: file.type } : undefined };
@@ -129,7 +142,7 @@ export default function ChatApp() {
     if (i < 0) return;
     const m = active.messages[i];
     if (m.attachment && !files.current[userMsgId]) { setToast("Please attach the file again and resend."); return; }
-    if (model.points > BALANCE) { setToast("Not enough points."); return; }
+    if (needsPts && model.points > BALANCE) { setToast("Not enough points."); return; }
     const base = active.messages.slice(0, i + 1).filter((x) => x.role !== "system").map((x) => (x.id === userMsgId ? { ...x, status: "sending" as const } : x));
     patch(active.id, (c) => ({ ...c, messages: base }));
     run(active.id, base, userMsgId);
@@ -185,7 +198,7 @@ export default function ChatApp() {
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden">
-      <HeaderSlot><ModelPicker compact models={models} value={model.id} onChange={setModelId} /></HeaderSlot>
+      <HeaderSlot><ModelPicker compact chat models={models} value={model.id} onChange={setModelId} /></HeaderSlot>
       <div className="absolute right-3 top-1 z-10 flex gap-1">
         <button type="button" aria-label="Conversations" onClick={() => setHist(true)} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-white/10 hover:text-ink"><History size={18} /></button>
         <button type="button" aria-label="New chat" onClick={newChat} className="grid h-9 w-9 place-items-center rounded-full text-muted hover:bg-white/10 hover:text-ink"><Plus size={18} /></button>
@@ -222,7 +235,7 @@ export default function ChatApp() {
                 <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/5"><Image src="/logo.png" alt="" width={22} height={18} /></div>
                 <div className="min-w-0 max-w-[88%]">
                   <div className={`rounded-3xl rounded-tl-lg px-4 py-2.5 ${m.role === "system" ? "whitespace-pre-wrap break-words border border-dashed border-red-400/40 text-muted" : "bg-white/5"}`}>
-                    {m.role === "system" ? <><b className="mb-1 block text-xs uppercase tracking-wider text-red-400">Couldn’t send</b>{m.content}</> : <Markdown text={m.content} />}
+                    {m.role === "system" ? <><b className="mb-1 block text-xs uppercase tracking-wider text-red-400">Couldn’t send</b>{m.content}</> : <><Markdown text={m.content} />{m.notice && <p className="mt-3 border-t border-white/10 pt-2 text-xs italic text-muted">{m.notice}</p>}</>}
                   </div>
                   {m.role === "system" ? (
                     m.retryFor === lastUserId && !busy && <div className="mt-2"><button type="button" onClick={() => retry(m.retryFor!)} className="btn btn-p !px-4 !py-1.5 text-sm"><RefreshCw size={14} />Retry</button></div>
@@ -250,7 +263,7 @@ export default function ChatApp() {
       </div>
 
       {toast && <p role="status" className="px-6 pb-2 text-center text-xs text-zinc-300">{toast}</p>}
-      <Dock value={input} onChange={setInput} onSend={() => send(input)} placeholder="Ask Nexora…" cost={shortPts(model.points)} low={model.points > BALANCE} disabled={busy} canSendEmpty={Boolean(attach.file)} onPlus={attach.openSheet} above={above} />
+      <Dock value={input} onChange={setInput} onSend={() => send(input)} placeholder="Ask Nexora…" cost={model.freeDaily ? (freeLeft === 0 ? shortPts(model.points) : undefined) : shortPts(model.points)} low={needsPts && model.points > BALANCE} disabled={busy} canSendEmpty={Boolean(attach.file)} onPlus={attach.openSheet} above={above} />
       {attach.ui}
 
       {hist && <div className="absolute inset-0 z-20 bg-black/60" onClick={() => setHist(false)} />}
