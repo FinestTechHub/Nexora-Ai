@@ -368,22 +368,16 @@
   ],
   "image": [
    {
-    "id": "fal-ai/flux/schnell",
-    "name": "Nexora Quick Draft (Flux Schnell)",
-    "points": 1,
-    "badge": "1-Sec Preview"
-   },
-   {
-    "id": "fal-ai/flux-pro/v1.1",
-    "name": "Nexora Studio HD (Flux 1.1 Pro)",
+    "id": "image-fast",
+    "name": "Nexora Image Fast",
     "points": 5,
-    "badge": "Thumbnail Flagship"
+    "badge": "Fast everyday art & graphics"
    },
    {
-    "id": "fal-ai/recraft-v3",
-    "name": "Nexora Vector (Recraft V3)",
-    "points": 6,
-    "badge": "Logos & Graphics"
+    "id": "image-pro",
+    "name": "Nexora Image Pro",
+    "points": 10,
+    "badge": "Sharp thumbnail text & multi-photo blending"
    }
   ],
   "text": [
