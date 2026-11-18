@@ -29,7 +29,7 @@ export type FilePart = { mimeType: string; data: string }; // data = base64, kep
 export type Turn = { role: "user" | "assistant"; content: string; files?: FilePart[] };
 
 let client: GoogleGenAI | null = null;
-function ai() {
+export function ai() {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new AIError("not_configured", "The AI service isn’t set up yet.", 500);
   return (client ??= new GoogleGenAI({ apiKey }));
@@ -47,19 +47,19 @@ function normalize(turns: Turn[]): Turn[] {
   return out;
 }
 
-const statusOf = (e: unknown): number | undefined => {
+export const statusOf = (e: unknown): number | undefined => {
   const s = (e as { status?: number; code?: number })?.status ?? (e as { code?: number })?.code;
   if (typeof s === "number") return s;
   const m = /"code"\s*:\s*(\d{3})/.exec(e instanceof Error ? e.message : "");
   return m ? Number(m[1]) : undefined;
 };
-const shouldFallback = (e: unknown) => {
+export const shouldFallback = (e: unknown) => {
   if (e instanceof TimeoutError || (e instanceof AIError && e.code === "empty")) return true;
   const s = statusOf(e);
   if (s && [404, 408, 429, 500, 502, 503, 504].includes(s)) return true;
   return /overload|unavailable|high demand|deadline|timeout|timed out|fetch failed|ECONN|ENOTFOUND/i.test(e instanceof Error ? e.message : String(e));
 };
-const withTimeout = <T,>(p: Promise<T>, ms: number) =>
+export const withTimeout = <T,>(p: Promise<T>, ms: number) =>
   new Promise<T>((resolve, reject) => { const t = setTimeout(() => reject(new TimeoutError("timeout")), ms); p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); }); });
 
 async function callOnce(step: Step, o: { system: string; turns: Turn[]; maxOutputTokens?: number }, ms: number): Promise<string> {
