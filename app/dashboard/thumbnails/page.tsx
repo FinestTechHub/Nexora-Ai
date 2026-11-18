@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import ToolStudio from "@/components/dashboard/ToolStudio";
+import ImageStudio from "@/components/dashboard/ImageStudio";
 
-export const metadata: Metadata = { title: "Thumbnail Generator" };
-export default function Page() { return <ToolStudio slug="thumbnails" />; }
+export const metadata: Metadata = { title: "Thumbnail Maker" };
+export default function Page() { return <ImageStudio mode="thumbnail" />; }
