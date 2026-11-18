@@ -1,87 +1,127 @@
 "use client";
-import { useState } from "react";
-import { Download, Heart, Image as ImageIcon, RefreshCw } from "lucide-react";
-import { Choice, DemoTag, GRADS, Working } from "./tool-ui";
+import { useEffect, useState } from "react";
+import { Clapperboard, Download, Image as ImageIcon, Share2 } from "lucide-react";
+import { Choice, Working } from "./tool-ui";
 import StudioShell, { StudioHero } from "./StudioShell";
-import StandardsPanel from "./StandardsPanel";
 import ModelPicker from "./ModelPicker";
 import HeaderSlot from "./HeaderSlot";
 import PointsInfo from "./PointsInfo";
 import ImproveButton from "./ImproveButton";
-import { genLabel, modelsFor, shortPts } from "@/lib/models";
+import ReferenceTray from "./ReferenceTray";
+import ImageViewer from "./ImageViewer";
+import { modelsFor, shortPts } from "@/lib/models";
 import { usePoints } from "@/lib/points/PointsContext";
+import { takeHandoff } from "@/lib/chat/handoff";
+import { downloadPng, loadCreations, shareImage, type Creation } from "@/lib/image/client";
 
-const styles = ["Realistic", "Cinematic", "Anime", "3D Render", "Illustration", "Minimal"] as const;
-const ratios = { "1:1": "aspect-square", "16:9": "aspect-video", "9:16": "aspect-[9/16]", "4:3": "aspect-[4/3]" } as const;
-const ratioKeys = Object.keys(ratios) as (keyof typeof ratios)[];
-const counts = ["1", "2", "4"] as const;
-const qualities = ["Standard", "HD"] as const;
-const examples = ["A futuristic city at sunrise, cinematic lighting", "Minimal product photo of a blue sneaker on white", "A friendly robot reading a book, 3D render"];
+const ASPECTS = ["1:1", "16:9", "9:16", "4:5"] as const;
+const STYLES = ["Photorealistic", "3D Render", "Anime", "Digital Art", "Product Shot", "Minimalist"] as const;
+const IDEAS = { image: ["A friendly robot reading a book, 3D render", "Minimal product photo of a blue sneaker on white", "A futuristic city at sunrise"], thumbnail: ["I tried the world’s cheapest drone", "5 AI tools that changed my work", "iPhone vs Android: the truth"] };
 
-export default function ImageStudio() {
-  const { points: BALANCE } = usePoints();
-  const [prompt, setPrompt] = useState("");
-  const [neg, setNeg] = useState("");
-  const [style, setStyle] = useState<(typeof styles)[number]>("Cinematic");
-  const [ratio, setRatio] = useState<keyof typeof ratios>("1:1");
-  const [count, setCount] = useState<(typeof counts)[number]>("2");
-  const [quality, setQuality] = useState<(typeof qualities)[number]>("Standard");
-  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
-  const [shown, setShown] = useState({ n: 2, r: "1:1" as keyof typeof ratios, s: "", seed: 0 });
-  const [note, setNote] = useState("");
-  const models = modelsFor("image")!;
-  const [modelId, setModelId] = useState(models[0].id);
+// One studio for both tools: mode "image" = Image Studio, mode "thumbnail" = Thumbnail Maker.
+export default function ImageStudio({ mode = "image" }: { mode?: "image" | "thumbnail" }) {
+  const thumb = mode === "thumbnail";
+  const { points: BALANCE, refresh } = usePoints();
+  const models = modelsFor(thumb ? "thumbnails" : "image")!;
+  const [modelId, setModelId] = useState(thumb ? "image-pro" : "image-fast"); // Thumbnail Maker starts on Pro, Image Studio on Fast
   const model = models.find((m) => m.id === modelId) ?? models[0];
-  const cost = model.points * Number(count); // points per image × number of images
+  const [prompt, setPrompt] = useState("");
+  const [text, setText] = useState("");
+  const [style, setStyle] = useState<(typeof STYLES)[number]>("Photorealistic");
+  const [aspect, setAspect] = useState<(typeof ASPECTS)[number]>(thumb ? "16:9" : "1:1");
+  const [refs, setRefs] = useState<File[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "done">("idle");
+  const [result, setResult] = useState<Creation | null>(null);
+  const [recent, setRecent] = useState<Creation[]>([]);
+  const [view, setView] = useState<Creation | null>(null);
+  const [note, setNote] = useState("");
+  const [progress, setProgress] = useState(0);
+  const cost = model.points;
 
-  function generate() {
-    if (!prompt.trim()) { setNote("Please describe your image first."); return; }
-    setNote(""); setStatus("loading");
-    setTimeout(() => { setShown({ n: Number(count), r: ratio, s: style, seed: prompt.length }); setStatus("done"); }, 900);
+  useEffect(() => { const h = takeHandoff(); if (h?.text) setPrompt(h.text); }, []); // a prompt typed on the Home screen
+  useEffect(() => { loadCreations({ limit: 8, toolType: mode }).then(setRecent).catch(() => {}); }, [mode]);
+  useEffect(() => {
+    if (status !== "loading") return;
+    setProgress(6);
+    const t = setInterval(() => setProgress((p) => Math.min(92, p + 3)), 800);
+    return () => clearInterval(t);
+  }, [status]);
+
+  async function generate() {
+    if (!prompt.trim()) { setNote(thumb ? "Describe the thumbnail scene or topic first." : "Describe your image first."); return; }
+    if (cost > BALANCE) return;
+    setNote(""); setStatus("loading"); setResult(null);
+    const fd = new FormData();
+    fd.append("payload", JSON.stringify({ mode, prompt, style, aspect, text: thumb ? text : "", modelId: model.id }));
+    refs.forEach((f, i) => fd.append(`ref${i}`, f)); // photos travel as raw bytes
+    try {
+      const res = await fetch("/api/ai/image", { method: "POST", body: fd });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setStatus("idle"); setNote(d.message ?? "Something went wrong. You weren’t charged."); return; }
+      const c = d.creation as Creation;
+      setResult(c); setRecent((r) => [c, ...r].slice(0, 8)); setStatus("done");
+      refresh(); // update the points in the header right away
+    } catch { setStatus("idle"); setNote("Couldn’t reach the server. You weren’t charged."); }
   }
-  const soon = (what: string) => setNote(`“${what}” will work once AI generation is connected.`);
 
   const canvas = (
     <>
-      {status === "idle" && <StudioHero Icon={ImageIcon} title="What image should we create?" chips={examples} onChip={setPrompt} />}
-      {status === "loading" && <Working label="Generating image…" />}
-      {status === "done" && (
+      {status === "idle" && <StudioHero Icon={thumb ? Clapperboard : ImageIcon} title={thumb ? "What should your thumbnail show?" : "What image should we create?"} chips={IDEAS[mode]} onChip={setPrompt} />}
+      {status === "loading" && (
         <div>
-          <div className="mb-3 flex items-center justify-between text-sm"><b>{shown.n} demo {shown.n > 1 ? "previews" : "preview"} · {shown.s}</b><button type="button" onClick={generate} className="flex items-center gap-1.5 font-semibold text-brand"><RefreshCw size={15} />Regenerate</button></div>
-          <div className={`grid gap-3 ${shown.n === 1 ? "mx-auto max-w-md" : "grid-cols-2"}`}>
-            {Array.from({ length: shown.n }).map((_, i) => (
-              <figure key={i} className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${GRADS[(i + shown.seed) % GRADS.length]} ${ratios[shown.r]}`}>
-                <div className="absolute left-3 top-3"><DemoTag /></div>
-                <figcaption className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-black/60 to-transparent p-3 text-white">
-                  <span className="text-xs">Variation {i + 1}</span>
-                  <span className="flex gap-1.5">
-                    <button type="button" aria-label="Download" onClick={() => soon("Download")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Download size={15} /></button>
-                    <button type="button" aria-label="Save" onClick={() => soon("Save")} className="grid h-9 w-9 place-items-center rounded-full bg-white/20"><Heart size={15} /></button>
-                  </span>
-                </figcaption>
-              </figure>
+          <Working label="Generating image…" />
+          <div className="mx-auto -mt-6 h-1.5 w-52 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-brand transition-all duration-700" style={{ width: `${progress}%` }} /></div>
+        </div>
+      )}
+      {status === "done" && result?.url && (
+        <div>
+          <button type="button" onClick={() => setView(result)} aria-label="View full screen" className="mx-auto block overflow-hidden rounded-2xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={result.url} alt={result.title ?? "Generated image"} className="max-h-[56dvh] max-w-full rounded-2xl object-contain" />
+          </button>
+          <p className="mt-2 text-center text-xs text-muted">{result.model_label} · saved to your Library</p>
+          <div className="mt-3 flex justify-center gap-2">
+            <button type="button" onClick={() => downloadPng(result.url!, `nexora-${result.id.slice(0, 8)}`)} className="btn btn-g !px-4 !py-2 text-sm"><Download size={16} />Download PNG</button>
+            <button type="button" onClick={() => shareImage(result.url!, result.title ?? "Nexora image")} className="btn btn-g !px-4 !py-2 text-sm"><Share2 size={16} />Share</button>
+          </div>
+        </div>
+      )}
+      {recent.length > 0 && (
+        <div className="mt-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Recent generations</p>
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            {recent.map((c) => c.url && (
+              <button key={c.id} type="button" onClick={() => setView(c)} aria-label={c.title ?? "Open creation"} className="h-20 shrink-0 overflow-hidden rounded-xl border border-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={c.url} alt="" className="h-full w-auto object-cover" />
+              </button>
             ))}
           </div>
         </div>
       )}
+      {view?.url && <ImageViewer src={view.url} title={view.title ?? undefined} id={view.id} onClose={() => setView(null)} />}
     </>
   );
   const options = (close: () => void) => (
     <>
-      <div><label htmlFor="neg" className="mb-2 block text-sm font-semibold">Negative prompt <span className="font-normal text-muted">(optional)</span></label><input id="neg" value={neg} onChange={(e) => setNeg(e.target.value)} placeholder="Things to avoid, e.g. blurry, text" className="field" /></div>
-      <Choice label="Style" options={styles} value={style} onChange={setStyle} />
-      <Choice label="Aspect ratio" options={ratioKeys} value={ratio} onChange={setRatio} />
-      <div className="grid grid-cols-2 gap-4"><Choice label="Images" options={counts} value={count} onChange={setCount} /><Choice label="Quality" options={qualities} value={quality} onChange={setQuality} /></div>
+      <Choice label="Aspect ratio" options={ASPECTS} value={aspect} onChange={setAspect} />
+      {!thumb && <Choice label="Style" options={STYLES} value={style} onChange={setStyle} />}
       <PointsInfo cost={cost} />
-      <button type="button" onClick={() => { close(); generate(); }} disabled={status === "loading" || cost > BALANCE} className="btn btn-p w-full disabled:opacity-60">{genLabel("Generate Images", cost)}</button>
-      <StandardsPanel slug="image" text={prompt} values={{ Style: style, "Aspect ratio": ratio, Images: count, Quality: quality, Model: model.id }} />
+      <button type="button" onClick={() => { close(); generate(); }} disabled={status === "loading" || cost > BALANCE} className="btn btn-p w-full disabled:opacity-60">Generate ({cost} pts)</button>
     </>
+  );
+  const above = (
+    <div className="space-y-2">
+      {thumb && <input value={text} onChange={(e) => setText(e.target.value.slice(0, 60))} placeholder="Exact text on thumbnail (optional)" aria-label="Exact text on thumbnail" className="field !rounded-2xl !py-2 text-base" />}
+      <ReferenceTray files={refs} onChange={setRefs} />
+    </div>
   );
   return (
     <>
       <HeaderSlot><ModelPicker compact models={models} value={model.id} onChange={setModelId} /></HeaderSlot>
-      <StudioShell Icon={ImageIcon} title="AI Image Generator" canvas={canvas} options={options} note={note}
-        dock={{ value: prompt, onChange: setPrompt, onSend: generate, placeholder: "Describe an image…", cost: shortPts(cost), low: cost > BALANCE, disabled: status === "loading", top: <ImproveButton inline slug="image" text={prompt} setText={setPrompt} values={{ Style: style }} max={500} /> }} />
+      <StudioShell Icon={thumb ? Clapperboard : ImageIcon} title={thumb ? "Thumbnail Maker" : "Image Studio"} canvas={canvas} options={options} note={note}
+        dock={{ value: prompt, onChange: setPrompt, onSend: generate, placeholder: thumb ? "Scene or topic of your thumbnail…" : "Describe an image…", cost: shortPts(cost), low: cost > BALANCE, disabled: status === "loading", above,
+          top: <ImproveButton inline slug={thumb ? "thumbnails" : "image"} text={prompt} setText={setPrompt} values={{ Style: style }} max={600} /> }} />
     </>
   );
 }

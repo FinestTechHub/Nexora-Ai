@@ -34,6 +34,7 @@ export default function HomeScreen() {
   function send() {
     if (!(mode.slug === "chat" && attach.file) && !validateInput(mode.slug, text).ok) { setNote("Type something first."); return; }
     if (mode.slug === "chat") { setHandoff({ text: text.trim(), file: attach.file }); attach.clear(); router.push("/dashboard/chat?q=1"); return; }
+    if (mode.slug === "image") { setHandoff({ text: text.trim(), file: null }); router.push("/dashboard/image"); return; }
     setNote(`${mode.k} generation isn’t connected yet. Nothing was sent.`);
   }
   const menu = (
