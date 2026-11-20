@@ -36,3 +36,23 @@ export function regionFromTimezone(tz?: string): Region {
   return area === "Europe" && EU_ZONES.has(city) ? "EU" : "US";
 }
 export const detectRegion = (ipCountry?: string | null): Region => (ipCountry ? regionFromCountry(ipCountry) : "US");
+
+/** "₦27,000" or "$19.90" from the smallest unit (kobo or cents). */
+export function formatCharge(currency: string, minor: number) {
+  const sym = currency === "NGN" ? "₦" : currency === "USD" ? "$" : `${currency} `, v = minor / 100;
+  return `${sym}${v.toLocaleString("en-US", { minimumFractionDigits: Number.isInteger(v) ? 0 : 2, maximumFractionDigits: 2 })}`;
+}
+export function itemLabel(itemId: string) {
+  const i = itemById(itemId);
+  return !i ? itemId : i.kind === "plan" ? `${i.name} plan` : `${i.points.toLocaleString("en-US")}-point top-up`;
+}
+/** Paid / Pending / Failed. A payment still "pending" after a day was never completed, so it counts as Failed. */
+export function txStatus(t: { status: string; created_at: string }): "paid" | "pending" | "failed" {
+  if (t.status === "success") return "paid";
+  if (t.status === "failed") return "failed";
+  return Date.now() - Date.parse(t.created_at) > 24 * 3600 * 1000 ? "failed" : "pending";
+}
+export function channelLabel(c?: string | null) {
+  const m: Record<string, string> = { card: "Card", bank: "Bank", bank_transfer: "Bank Transfer", ussd: "USSD", mobile_money: "Mobile Money", qr: "QR", apple_pay: "Apple Pay", eft: "EFT" };
+  return c ? (m[c] ?? c.replace(/_/g, " ").replace(/^./, (x) => x.toUpperCase())) : "Paystack";
+}

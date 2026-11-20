@@ -15,12 +15,13 @@ export async function paystackRequest(path: string, init?: { method?: string; bo
 }
 
 /** Credits a paid transaction. Safe to call any number of times (webhook + return page): the database credits it only once. */
-export async function settle(reference: string, amountMinor: number, currency: string) {
+export async function settle(reference: string, amountMinor: number, currency: string, channel?: string) {
   const { data, error } = await admin().rpc("credit_paystack_purchase", { p_reference: reference, p_amount_minor: amountMinor, p_currency: currency });
   if (error) {
     if (error.message.includes("unknown_reference")) return { kind: "unknown" as const };
     if (error.message.includes("amount_mismatch")) return { kind: "mismatch" as const };
     throw error;
   }
+  if (channel) { try { await admin().from("payment_transactions").update({ channel }).eq("reference", reference); } catch { /* receipt detail only */ } }
   return { kind: "ok" as const, already: Boolean(data.already), points: Number(data.points), balance: Number(data.balance) };
 }
