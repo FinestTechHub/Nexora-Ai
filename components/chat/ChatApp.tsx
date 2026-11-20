@@ -85,6 +85,13 @@ export default function ChatApp() {
     if (!ready) return;
     const p = new URLSearchParams(location.search), q = p.get("q"), g = p.get("g"), h = takeHandoff();
     if (g) { history.replaceState(history.state, "", "/dashboard/chat"); openFromLibrary(g); }
+    else if (h?.fill) { // a starter card from the Home screen: fill the box (and pick the model or open the photo picker) but do not send
+      history.replaceState(history.state, "", "/dashboard/chat");
+      if (h.model) setModelId(h.model);
+      setInput(h.text);
+      setTimeout(() => document.getElementById("dock-input")?.focus(), 60);
+      if (h.picker) { attach.openSheet(); try { attach.pickKind(h.picker); } catch { /* the sheet stays open */ } }
+    }
     else if (q || h) { history.replaceState(history.state, "", "/dashboard/chat"); send(h?.text ?? q ?? "", h?.file ?? null); }
   }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
