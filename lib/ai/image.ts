@@ -15,13 +15,16 @@ export const STYLES: Record<string, string> = {
 export type Ref = { mimeType: string; data: string }; // base64, kept in memory only
 
 // Clean brand tiers -> real model IDs. IDs can be overridden in Vercel (GEMINI_IMAGE_FAST_MODEL / GEMINI_IMAGE_PRO_MODEL).
-const CHAINS: Record<"fast" | "pro", string[]> = {
-  fast: [process.env.GEMINI_IMAGE_FAST_MODEL || "gemini-3.1-flash-lite-image", "gemini-3.1-flash-image"],
-  pro: [process.env.GEMINI_IMAGE_PRO_MODEL || "gemini-3.1-flash-image", "gemini-3-pro-image"],
+const CHAINS: Record<"fast" | "pro" | "ultra", string[]> = { // fallbacks only ever go DOWN in cost, never up
+  fast: [process.env.GEMINI_IMAGE_FAST_MODEL || "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image"],
+  pro: [process.env.GEMINI_IMAGE_PRO_MODEL || "gemini-3.1-flash-image", "gemini-3.1-flash-lite-image", "gemini-2.5-flash-image"],
+  ultra: [process.env.GEMINI_IMAGE_ULTRA_MODEL || "gemini-3-pro-image", "gemini-3.1-flash-image"],
 };
-const PER_ATTEMPT_MS = 26000, BUDGET_MS = 54000;
+const PER_ATTEMPT_MS = { fast: 20000, pro: 24000, ultra: 32000 }, BUDGET_MS = 54000;
 
-export function buildImagePrompt(o: { mode: "image" | "thumbnail"; prompt: string; style: string; aspect: Aspect; text: string; refs: number }) {
+export function buildImagePrompt(o: { mode: "image" | "thumbnail"; prompt: string; style: string; aspect: Aspect; text: string; refs: number; edit?: boolean }) {
+  if (o.edit) // changing an image the user already made: it is the FIRST attached picture
+    return `Edit the first attached image as follows: ${o.prompt}\nKeep everything else exactly the same unless the change requires otherwise. Keep a ${o.aspect} frame.` + (o.text ? ` Any title text must read exactly: "${o.text}".` : "") + (o.refs > 1 ? "\nThe other attached photo(s) are extra references." : "");
   const refs = o.refs ? (o.mode === "thumbnail"
     ? `\nThe ${o.refs} attached photo(s) show the person or product to feature. Place them prominently and blend them seamlessly into the scene, keeping faces recognisable.`
     : `\nUse the ${o.refs} attached reference photo(s) as the visual reference (subject, product or style) and blend them naturally into the result.`) : "";
@@ -51,13 +54,13 @@ async function once(model: string, prompt: string, aspect: Aspect, refs: Ref[], 
 }
 
 /** Returns a valid image or throws. Falls back to the next model on overload, timeouts or a missing model. */
-export async function generateImage(o: { tier: "fast" | "pro"; prompt: string; aspect: Aspect; refs: Ref[] }) {
+export async function generateImage(o: { tier: "fast" | "pro" | "ultra"; prompt: string; aspect: Aspect; refs: Ref[] }) {
   const models = CHAINS[o.tier], start = Date.now();
   let last: unknown;
   for (let i = 0; i < models.length; i++) {
     const left = BUDGET_MS - (Date.now() - start);
     if (left < 4000) break;
-    try { return await once(models[i], o.prompt, o.aspect, o.refs, Math.min(PER_ATTEMPT_MS, left)); }
+    try { return await once(models[i], o.prompt, o.aspect, o.refs, Math.min(PER_ATTEMPT_MS[o.tier], left)); }
     catch (e) {
       last = e;
       console.warn(`Image model ${models[i]} failed (${statusOf(e) ?? (e instanceof Error ? e.message : "unknown")}).`);
