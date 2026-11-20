@@ -6,11 +6,11 @@ import { AIError } from "@/lib/ai/gemini";
 export const fail = (status: number, error: string, message: string) => NextResponse.json({ error, message }, { status });
 
 /** Reads the signed-in user from the Supabase session cookie. */
-export async function requireUser(): Promise<{ ok: true; userId: string } | { ok: false; res: NextResponse }> {
+export async function requireUser(): Promise<{ ok: true; userId: string; email: string; name: string; verified: boolean } | { ok: false; res: NextResponse }> {
   try {
     const sb = await createClient();
     const { data } = await sb.auth.getUser();
-    if (data.user) return { ok: true, userId: data.user.id };
+    if (data.user) return { ok: true, userId: data.user.id, email: data.user.email ?? "", name: String(data.user.user_metadata?.full_name ?? ""), verified: Boolean(data.user.email_confirmed_at) };
   } catch { /* fall through */ }
   return { ok: false, res: fail(401, "unauthorized", "Please log in again.") };
 }
