@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateText, type ChainName, type FilePart, type Turn } from "@/lib/ai/gemini";
-import { CHAT_SYSTEM } from "@/lib/ai/prompts";
+import { chatSystem } from "@/lib/ai/prompts";
 import { fail, handle, requireUser } from "@/lib/ai/route-helpers";
 import { modelsFor } from "@/lib/models";
 import { admin, InsufficientPointsError, runPaidGeneration } from "@/lib/points/server";
@@ -76,7 +76,7 @@ export async function POST(req: Request) {
         const { data: p } = await admin().from("profiles").select("points").eq("id", auth.userId).single();
         if (!p || p.points < model.points) throw new InsufficientPointsError("Not enough points.");
       }
-      const text = await generateText({ system: CHAT_SYSTEM, turns: capTurns(turns), chain, maxOutputTokens: NEXORA1.maxOutputTokens });
+      const text = await generateText({ system: chatSystem(auth), turns: capTurns(turns), chain, maxOutputTokens: NEXORA1.maxOutputTokens });
       const { data, error } = await admin().rpc("complete_nexora1", { p_user_id: auth.userId, p_prompt: prompt, p_result: { text }, p_limit: limit });
       if (error) throw error;
       if (data.status === "unpaid") return fail(402, "insufficient_points", "Your points ran out while this was generating. The answer was saved to your Library as unpaid.");
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
     let text = "";
     const paid = await runPaidGeneration({
       userId: auth.userId, tool: "chat", model: model.id, prompt, cost: model.points,
-      produce: async () => { text = await generateText({ system: CHAT_SYSTEM, turns, chain }); return { text }; },
+      produce: async () => { text = await generateText({ system: chatSystem(auth), turns, chain }); return { text }; },
       isValid: (r) => r.text.length > 0,
     });
     if (paid.status === "unpaid") return fail(402, "insufficient_points", "Your points ran out while this was generating. The answer was saved to your Library as unpaid.");
