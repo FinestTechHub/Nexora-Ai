@@ -24,7 +24,7 @@ export async function GET(req: Request) {
   const st = String(v.json.data?.status);
   if (st !== "success") return NextResponse.json({ status: st === "failed" || st === "abandoned" || st === "reversed" ? "failed" : "pending" });
   try {
-    const s = await settle(reference, Number(v.json.data.amount), String(v.json.data.currency));
+    const s = await settle(reference, Number(v.json.data.amount), String(v.json.data.currency), String(v.json.data.channel ?? ""));
     if (s.kind === "ok") return NextResponse.json({ status: "success", already: s.already, points: s.points, balance: s.balance });
     console.error("verify: payment problem", reference, s.kind);
     return NextResponse.json({ status: "error", message: "We couldn’t match this payment. Please contact support with your reference." }, { status: 409 });
