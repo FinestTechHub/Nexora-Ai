@@ -17,6 +17,8 @@ import { takeHandoff } from "@/lib/chat/handoff";
 import { buildChatRequest, sendChatMessage, ChatError, type ChatMessage, type ChatRequest, type Conversation } from "@/lib/chat/api";
 
 const KEY = "nexora-chats-v1";
+const SESSION_KEY = "nexora-chat-session"; // which chat is open right now (forgotten when the app is closed)
+const IDLE_MS = 30 * 60 * 1000; // away longer than this = a brand-new chat
 const SUGGESTED = ["Give me 5 video ideas about budget travel", "Write a 30-second script about morning routines", "Explain what an API is in two sentences"];
 const NOTICE_12 = "You’ve used your 12 free daily messages on Nexora 1.0. Continuing will use 1 pt per message, or you can switch models anytime.";
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -61,11 +63,20 @@ export default function ChatApp() {
     try {
       const l: Conversation[] = JSON.parse(localStorage.getItem(KEY) || "[]");
       const clean = l.map((c) => ({ ...c, messages: c.messages.filter((m) => m.role !== "system").map((m) => (m.status === "sending" || m.status === "sent" ? { ...m, status: "failed" as const } : m)) }));
-      setConvs(clean); setActiveId(clean[0]?.id ?? null);
+      let open: string | null = null; // reopen the same chat ONLY when you were just here; otherwise a fresh, empty chat opens
+      try { const s = JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); if (s?.id && Date.now() - s.at < IDLE_MS && clean.some((c) => c.id === s.id)) open = s.id; } catch { /* ignore */ }
+      setConvs(clean); setActiveId(open);
     } catch { /* ignore */ }
     setReady(true);
   }, []);
   useEffect(() => { if (ready) try { localStorage.setItem(KEY, JSON.stringify(savable(convs))); } catch { /* ignore */ } }, [convs, ready]);
+  const lastAt = useRef(Date.now());
+  useEffect(() => { if (!ready) return; lastAt.current = Date.now(); try { if (activeId) sessionStorage.setItem(SESSION_KEY, JSON.stringify({ id: activeId, at: Date.now() })); } catch { /* ignore */ } }, [activeId, convs, ready]);
+  useEffect(() => { // coming back after a long break: start a new chat (your old chats stay in the history)
+    const f = () => { if (document.visibilityState === "visible" && Date.now() - lastAt.current > IDLE_MS) { setActiveId(null); setEditing(null); setInput(""); } };
+    document.addEventListener("visibilitychange", f);
+    return () => document.removeEventListener("visibilitychange", f);
+  }, []);
   useEffect(() => { if (ready && isConfigured) purgeExpired(); }, [ready]); // removes this user's expired free-plan images
   const active = convs.find((c) => c.id === activeId) ?? null;
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [active?.messages.length, thinking]);
