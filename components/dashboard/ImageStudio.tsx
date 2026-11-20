@@ -46,6 +46,7 @@ export default function ImageStudio({ mode = "image" }: { mode?: "image" | "thum
   const [hist, setHist] = useState(false);
   const [view, setView] = useState<Creation | null>(null);
   const [note, setNote] = useState("");
+  const [hl, setHl] = useState(false); // briefly highlights the reference photo tray
   const inflight = useRef(0);
   const endRef = useRef<HTMLDivElement>(null);
   const cost = model.points;
@@ -57,7 +58,11 @@ export default function ImageStudio({ mode = "image" }: { mode?: "image" | "thum
 
   // On opening: a session from the Library (?s=...), or the one you were just in (under 30 minutes ago). Otherwise a fresh blank session.
   useEffect(() => {
-    const h = takeHandoff(); if (h?.text) setPrompt(h.text);
+    const h = takeHandoff();
+    if (h?.text) setPrompt(h.text);
+    if (h?.style && (STYLES as readonly string[]).includes(h.style)) setStyle(h.style as (typeof STYLES)[number]);
+    if (h?.aspect && (ASPECTS as readonly string[]).includes(h.aspect)) setAspect(h.aspect as (typeof ASPECTS)[number]);
+    if (h?.highlight === "refs") { setHl(true); setTimeout(() => setHl(false), 9000); }
     const q = new URLSearchParams(location.search).get("s");
     let id: string | null = q;
     if (q) history.replaceState(history.state, "", location.pathname);
@@ -205,7 +210,7 @@ export default function ImageStudio({ mode = "image" }: { mode?: "image" | "thum
         </div>
       )}
       {thumb && <input value={text} onChange={(e) => setText(e.target.value.slice(0, 60))} placeholder="Exact text on thumbnail (optional)" aria-label="Exact text on thumbnail" className="field !rounded-2xl !py-2 text-base" />}
-      <ReferenceTray files={refs} onChange={setRefs} max={editFile ? 2 : 3} />
+      <ReferenceTray files={refs} onChange={setRefs} max={editFile ? 2 : 3} highlight={hl} />
     </div>
   );
   return (

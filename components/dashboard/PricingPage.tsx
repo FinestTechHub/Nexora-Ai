@@ -1,21 +1,24 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Check, Coins, CreditCard } from "lucide-react";
+import { Check, ChevronRight, Coins, CreditCard } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { usePoints } from "@/lib/points/PointsContext";
-import { ITEMS, SYMBOL, detectRegion, money, regionFromTimezone, type Region } from "@/lib/payments/catalog";
+import { ITEMS, SYMBOL, detectRegion, formatCharge, itemLabel, money, regionFromTimezone, txStatus, type Region } from "@/lib/payments/catalog";
 import { ToolHeader } from "./tool-ui";
 
-type Log = { id: string; kind: string; amount: number; description: string | null; tool: string | null; created_at: string };
+type Tx = { reference: string; item_id: string; currency: string; amount_minor: number; points: number; points_credited: number; status: string; created_at: string; paid_at: string | null };
 type Notice = { tone: "ok" | "wait" | "bad"; text: string };
 const UPGRADE = ["Upgraded uploads: 4 MB files, 25 MB per day", "Chat images never expire"];
 const FEATURES: Record<string, string[]> = { creator: ["Core AI tools", "Faster generation speeds", ...UPGRADE], pro: ["All tools unlocked", "Priority processing", ...UPGRADE] };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const PILL = { paid: "bg-green-500/15 text-green-400", pending: "bg-amber-500/15 text-amber-400", failed: "bg-red-500/15 text-red-400" };
+const PILL_TEXT = { paid: "Paid", pending: "Pending", failed: "Failed" };
 
 export default function PricingPage({ ipCountry }: { ipCountry?: string | null }) {
   const { profile, loading, refresh } = usePoints();
   const [region, setRegion] = useState<Region>(detectRegion(ipCountry));
-  const [logs, setLogs] = useState<Log[] | null>(null);
+  const [txs, setTxs] = useState<Tx[] | null>(null);
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -23,7 +26,7 @@ export default function PricingPage({ ipCountry }: { ipCountry?: string | null }
   // Currency: the visitor's country when Vercel provides it, otherwise the browser's time zone. No manual switch.
   useEffect(() => { if (!ipCountry) setRegion(regionFromTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone)); }, [ipCountry]);
 
-  // Back from Paystack (?reference=...): confirm the payment, update the balance and the activity list.
+  // Back from Paystack (?reference=...): confirm the payment and update the balance.
   useEffect(() => {
     const q = new URLSearchParams(location.search), ref = q.get("reference") ?? q.get("trxref");
     if (!ref) return;
@@ -42,10 +45,12 @@ export default function PricingPage({ ipCountry }: { ipCountry?: string | null }
     })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Payment history: only this person's own payments.
   useEffect(() => {
-    if (!profile) { setLogs(loading ? null : []); return; }
-    createClient().from("usage_logs").select("id, kind, amount, description, tool, created_at").order("created_at", { ascending: false }).limit(8)
-      .then(({ data: d }) => setLogs((d as Log[]) ?? []));
+    if (!profile) { setTxs(loading ? null : []); return; }
+    createClient().from("payment_transactions").select("reference, item_id, currency, amount_minor, points, points_credited, status, created_at, paid_at")
+      .eq("user_id", profile.id).order("created_at", { ascending: false }).limit(20)
+      .then(({ data }) => setTxs((data as Tx[]) ?? []));
   }, [profile?.id, profile?.points, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function buy(itemId: string) {
@@ -62,7 +67,7 @@ export default function PricingPage({ ipCountry }: { ipCountry?: string | null }
   const tone = { ok: "border-green-500/40 bg-green-500/10 text-green-400", wait: "border-brand/40 bg-soft text-muted", bad: "border-red-500/40 bg-red-500/10 text-red-400" };
   return (
     <div className="mx-auto max-w-6xl">
-      <ToolHeader Icon={CreditCard} title="Pricing & Points" desc="Plans, point top-ups and your activity." />
+      <ToolHeader Icon={CreditCard} title="Pricing & Points" desc="Plans, point top-ups and your payments." />
       {notice && <p role="status" className={`mb-5 rounded-2xl border px-4 py-3 text-sm ${tone[notice.tone]}`}>{notice.text}</p>}
       <div className="card mb-8 hover:!translate-y-0"><p className="text-sm text-muted">Your balance</p><p className="text-4xl font-extrabold">{profile ? profile.points.toLocaleString() : "—"} <span className="text-base font-medium text-muted">points</span></p></div>
 
@@ -104,17 +109,28 @@ export default function PricingPage({ ipCountry }: { ipCountry?: string | null }
         {(region === "GB" || region === "EU") && <p>International cards are processed securely in USD equivalent via Paystack.</p>}
       </div>
 
-      <h2 className="mb-4 mt-10 text-xl font-bold">Recent activity</h2>
-      {logs === null ? <p className="text-muted">Loading…</p> : logs.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">No activity yet. When you run a tool, it shows up here.</div>
+      <h2 className="mb-4 mt-10 text-xl font-bold">Payment history</h2>
+      {txs === null ? <p className="text-muted">Loading…</p> : txs.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-line p-6 text-center text-sm text-muted">No payments yet. Your receipts will appear here.</div>
       ) : (
-        <div className="divide-y divide-line rounded-2xl border border-line bg-card">
-          {logs.map((l) => (
-            <div key={l.id} className="flex items-center justify-between gap-3 px-5 py-3 text-sm">
-              <span className="min-w-0"><span className="block truncate">{l.description || l.kind}</span><span className="text-xs text-muted">{new Date(l.created_at).toLocaleString()}</span></span>
-              <b className={l.amount < 0 ? "text-red-400" : "text-green-500"}>{l.amount > 0 ? "+" : ""}{l.amount} pts</b>
-            </div>
-          ))}
+        <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-card">
+          {txs.map((t) => {
+            const st = txStatus(t);
+            return (
+              <Link key={t.reference} href={`/dashboard/transactions/${t.reference}`} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-white/5">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{itemLabel(t.item_id)}</span>
+                  <span className="text-xs text-muted">{new Date(t.paid_at ?? t.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}</span>
+                </span>
+                <span className="text-right">
+                  <span className="block text-sm font-semibold">{formatCharge(t.currency, t.amount_minor)}</span>
+                  <span className={`text-xs font-semibold ${st === "paid" ? "text-green-400" : "text-muted"}`}>+{(st === "paid" ? t.points_credited : t.points).toLocaleString("en-US")} pts</span>
+                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${PILL[st]}`}>{PILL_TEXT[st]}</span>
+                <ChevronRight size={18} className="shrink-0 text-muted" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

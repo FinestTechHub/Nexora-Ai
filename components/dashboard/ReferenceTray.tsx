@@ -4,7 +4,7 @@ import { Plus, X } from "lucide-react";
 import { compressReference } from "@/lib/image/client";
 
 // Reference photos (up to `max`, default 3), shrunk in the browser. Shown right above the prompt box, like Chat's attachment strip.
-export default function ReferenceTray({ files, onChange, max = 3 }: { files: File[]; onChange: (f: File[]) => void; max?: number }) {
+export default function ReferenceTray({ files, onChange, max = 3, highlight = false }: { files: File[]; onChange: (f: File[]) => void; max?: number; highlight?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const urls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
@@ -28,9 +28,9 @@ export default function ReferenceTray({ files, onChange, max = 3 }: { files: Fil
             <button type="button" aria-label="Remove reference image" onClick={() => onChange(files.filter((_, j) => j !== i))} className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-zinc-900 ring-1 ring-zinc-700"><X size={11} /></button>
           </div>
         ))}
-        {files.length < max && <button type="button" onClick={() => input.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs font-medium hover:border-brand"><Plus size={13} className="text-brand" />{files.length ? `Add more (${files.length}/${max})` : `Add reference images (up to ${max})`}</button>}
+        {files.length < max && <button type="button" onClick={() => input.current?.click()} className={`inline-flex items-center gap-1.5 rounded-full border bg-zinc-900/90 px-3 py-1.5 text-xs font-medium hover:border-brand ${highlight ? "animate-pulse border-brand ring-2 ring-brand/50" : "border-zinc-800"}`}><Plus size={13} className="text-brand" />{files.length ? `Add more (${files.length}/${max})` : `Add reference images (up to ${max})`}</button>}
       </div>
-      <p className="text-[11px] leading-snug text-zinc-500">Optional: attach up to 3 photos (your face, a product, or style reference) to blend into the result.</p>
+      <p className={`text-[11px] leading-snug ${highlight ? "text-brand" : "text-zinc-500"}`}>Optional: attach up to 3 photos (your face, a product, or style reference) to blend into the result.</p>
       {msg && <p role="alert" className="text-xs text-amber-400">{msg}</p>}
       <input ref={input} type="file" hidden multiple accept="image/jpeg,image/png,image/webp" onChange={pick} />
     </div>
