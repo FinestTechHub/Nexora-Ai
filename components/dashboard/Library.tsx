@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { Check, Copy, FolderOpen, MessageSquare, X } from "lucide-react";
 import { Markdown, stripMarkdown } from "@/components/chat/Markdown";
 import { createClient, isConfigured } from "@/lib/supabase/client";
-import { loadCreations, type Creation } from "@/lib/image/client";
-import ImageViewer from "./ImageViewer";
+import { groupSessions, loadCreations, type Creation, type Session } from "@/lib/image/client";
+import SessionThread from "./SessionThread";
 import { Choice, GRADS, ToolHeader } from "./tool-ui";
 
 type Res = { kind?: string; text?: string; items?: string[]; titles?: string[]; description?: string; tags?: string[]; url?: string };
 type Gen = { id: string; tool: string; model: string | null; prompt: string | null; result: Res | null; status: string; points_charged: number; created_at: string };
-type Item = { key: string; at: string } & ({ type: "gen"; g: Gen } | { type: "cre"; c: Creation });
+type Item = { key: string; at: string } & ({ type: "gen"; g: Gen } | { type: "ses"; s: Session });
 const FILTERS = ["All", "Images", "Thumbnails", "Chats"] as const;
 const NAMES: Record<string, string> = { chat: "Chat", script: "Script Writer", ideas: "Content Ideas", "youtube-seo": "YouTube SEO" };
 
@@ -25,23 +25,23 @@ export default function Library() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [f, setF] = useState<(typeof FILTERS)[number]>("All");
   const [open, setOpen] = useState<Gen | null>(null);
-  const [view, setView] = useState<Creation | null>(null);
+  const [thread, setThread] = useState<Session | null>(null);
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     if (!isConfigured) { setItems([]); return; }
     Promise.all([
       createClient().from("generations").select("id, tool, model, prompt, result, status, points_charged, created_at").neq("status", "failed").order("created_at", { ascending: false }).limit(60),
-      loadCreations({ limit: 60 }).catch(() => [] as Creation[]),
+      loadCreations({ limit: 200 }).catch(() => [] as Creation[]),
     ]).then(([g, c]) => {
       const all: Item[] = [
         ...((g.data as Gen[]) ?? []).filter((x) => x.status !== "failed").map((x) => ({ key: `g${x.id}`, at: x.created_at, type: "gen" as const, g: x })),
-        ...c.map((x) => ({ key: `c${x.id}`, at: x.created_at, type: "cre" as const, c: x })),
+        ...groupSessions(c).map((s) => ({ key: `s${s.id}`, at: s.at, type: "ses" as const, s })), // image sessions: one card per thread
       ];
       setItems(all.sort((a, b) => b.at.localeCompare(a.at)));
     });
   }, []);
   useEffect(() => { if (!open) return; const k = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(null); }; window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k); }, [open]);
-  const shown = (items ?? []).filter((i) => f === "All" || (f === "Images" && i.type === "cre" && i.c.tool_type === "image") || (f === "Thumbnails" && i.type === "cre" && i.c.tool_type === "thumbnail") || (f === "Chats" && i.type === "gen" && i.g.tool === "chat"));
+  const shown = (items ?? []).filter((i) => f === "All" || (f === "Images" && i.type === "ses" && i.s.tool_type === "image") || (f === "Thumbnails" && i.type === "ses" && i.s.tool_type === "thumbnail") || (f === "Chats" && i.type === "gen" && i.g.tool === "chat"));
   async function copy(g: Gen) { try { await navigator.clipboard.writeText(stripMarkdown(asMarkdown(g.result))); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } }
   const cls = "block w-full overflow-hidden rounded-2xl border border-line bg-card text-left transition active:scale-[.98]";
 
@@ -57,14 +57,14 @@ export default function Library() {
           <div className="mb-5"><Choice label="Show" options={FILTERS} value={f} onChange={setF} /></div>
           {shown.length === 0 && <p className="text-sm text-muted">Nothing here yet.</p>}
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {shown.map((it, i) => it.type === "cre" ? (
-              <button key={it.key} type="button" onClick={() => setView(it.c)} className={cls}>
+            {shown.map((it, i) => it.type === "ses" ? (
+              <button key={it.key} type="button" onClick={() => setThread(it.s)} className={cls}>
                 <div className="relative aspect-[4/3] bg-white/5">
-                  {it.c.url ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={it.c.url} alt={it.c.title ?? ""} className="h-full w-full object-cover" /> : <div className={`h-full bg-gradient-to-br ${GRADS[i % GRADS.length]}`} />}
-                  <span className="absolute left-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">{it.c.tool_type === "thumbnail" ? "Thumbnail" : "Image"}</span>
-                  {it.c.status === "unpaid" && <span className="absolute right-2 top-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold text-black">UNPAID</span>}
+                  {it.s.cover ? /* eslint-disable-next-line @next/next/no-img-element */ <img src={it.s.cover} alt="" className="h-full w-full object-cover" /> : <div className={`h-full bg-gradient-to-br ${GRADS[i % GRADS.length]}`} />}
+                  <span className="absolute left-2 top-2 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold text-white">{it.s.tool_type === "thumbnail" ? "Thumbnail" : "Image"}</span>
+                  {it.s.count > 1 && <span className="absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">{it.s.count} images</span>}
                 </div>
-                <div className="p-3"><h3 className="line-clamp-1 text-sm font-semibold">{it.c.title || "Untitled"}</h3><p className="mt-1 text-[11px] text-muted">{it.c.model_label} · {new Date(it.c.created_at).toLocaleDateString()}</p></div>
+                <div className="p-3"><h3 className="line-clamp-1 text-sm font-semibold">{it.s.title}</h3><p className="mt-1 text-[11px] text-muted">{new Date(it.s.at).toLocaleDateString()}</p></div>
               </button>
             ) : (
               <button key={it.key} type="button" onClick={() => setOpen(it.g)} className={cls}>
@@ -82,7 +82,7 @@ export default function Library() {
           </div>
         </>
       )}
-      {view?.url && <ImageViewer src={view.url} title={view.title ?? undefined} id={view.id} onClose={() => setView(null)} />}
+      {thread && <SessionThread session={thread} onClose={() => setThread(null)} />}
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60" onClick={() => setOpen(null)}>
           <div role="dialog" aria-modal="true" aria-label="Saved result" onClick={(e) => e.stopPropagation()} className="page-in max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-3xl border-t border-zinc-800 bg-[#111114] p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">

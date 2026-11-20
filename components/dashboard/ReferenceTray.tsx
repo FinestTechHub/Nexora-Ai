@@ -3,8 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { compressReference } from "@/lib/image/client";
 
-// Up to 3 reference photos, shrunk in the browser. Shown right above the prompt box, like Chat's attachment strip.
-export default function ReferenceTray({ files, onChange }: { files: File[]; onChange: (f: File[]) => void }) {
+// Reference photos (up to `max`, default 3), shrunk in the browser. Shown right above the prompt box, like Chat's attachment strip.
+export default function ReferenceTray({ files, onChange, max = 3 }: { files: File[]; onChange: (f: File[]) => void; max?: number }) {
   const input = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState("");
   const urls = useMemo(() => files.map((f) => URL.createObjectURL(f)), [files]);
@@ -14,8 +14,8 @@ export default function ReferenceTray({ files, onChange }: { files: File[]; onCh
     const list = Array.from(e.target.files ?? []);
     e.target.value = "";
     if (!list.length) return;
-    const ok = list.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, 3 - files.length);
-    setMsg(ok.length < list.length ? "Only JPEG, PNG or WebP photos, up to 3 in total." : "");
+    const ok = list.filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type)).slice(0, max - files.length);
+    setMsg(ok.length < list.length ? `Only JPEG, PNG or WebP photos, up to ${max} in total.` : "");
     if (ok.length) onChange([...files, ...(await Promise.all(ok.map(compressReference)))]);
   }
   return (
@@ -28,7 +28,7 @@ export default function ReferenceTray({ files, onChange }: { files: File[]; onCh
             <button type="button" aria-label="Remove reference image" onClick={() => onChange(files.filter((_, j) => j !== i))} className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-zinc-900 ring-1 ring-zinc-700"><X size={11} /></button>
           </div>
         ))}
-        {files.length < 3 && <button type="button" onClick={() => input.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs font-medium hover:border-brand"><Plus size={13} className="text-brand" />{files.length ? `Add more (${files.length}/3)` : "Add reference images (up to 3)"}</button>}
+        {files.length < max && <button type="button" onClick={() => input.current?.click()} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-800 bg-zinc-900/90 px-3 py-1.5 text-xs font-medium hover:border-brand"><Plus size={13} className="text-brand" />{files.length ? `Add more (${files.length}/${max})` : `Add reference images (up to ${max})`}</button>}
       </div>
       <p className="text-[11px] leading-snug text-zinc-500">Optional: attach up to 3 photos (your face, a product, or style reference) to blend into the result.</p>
       {msg && <p role="alert" className="text-xs text-amber-400">{msg}</p>}
