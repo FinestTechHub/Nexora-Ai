@@ -16,7 +16,7 @@ export async function POST(req: Request) {
   const auth = await requireUser();
   if (!auth.ok) return auth.res;
 
-  let p: { mode?: string; prompt?: string; style?: string; aspect?: string; text?: string; modelId?: string };
+  let p: { mode?: string; prompt?: string; style?: string; aspect?: string; text?: string; modelId?: string; sessionId?: string; sessionTitle?: string; edit?: boolean };
   const refs: Ref[] = [];
   try {
     const fd = await req.formData();
@@ -38,14 +38,17 @@ export async function POST(req: Request) {
 
   const models = modelsFor(mode === "thumbnail" ? "thumbnails" : "image")!;
   const model = models.find((m) => m.id === p.modelId) ?? models.find((m) => m.id === (mode === "thumbnail" ? "image-pro" : "image-fast")) ?? models[0];
-  const cost = model.points; // 5 (Fast) or 10 (Pro), decided here, never by the browser
+  const cost = model.points; // 5 / 10 / 20, decided here, never by the browser
+  const tier = model.id === "image-ultra" ? "ultra" : model.id === "image-pro" ? "pro" : "fast";
+  const sessionId = typeof p.sessionId === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.sessionId) ? p.sessionId : crypto.randomUUID();
+  const sessionTitle = (p.sessionTitle ?? "").trim().slice(0, 120) || prompt.slice(0, 80);
   const db = admin();
 
   try {
     const { data: prof } = await db.from("profiles").select("points").eq("id", auth.userId).single();
     if (!prof || prof.points < cost) throw new InsufficientPointsError("Not enough points."); // checked BEFORE spending anything on the AI
 
-    const img = await generateImage({ tier: model.id === "image-pro" ? "pro" : "fast", aspect, refs, prompt: buildImagePrompt({ mode, prompt, style, aspect, text, refs: refs.length }) });
+    const img = await generateImage({ tier, aspect, refs, prompt: buildImagePrompt({ mode, prompt, style, aspect, text, refs: refs.length, edit: Boolean(p.edit) && refs.length > 0 }) });
 
     // Save permanently FIRST. Only a saved image can be charged.
     const path = `${auth.userId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${EXT[img.mimeType] ?? "png"}`;
@@ -53,14 +56,14 @@ export async function POST(req: Request) {
     if (up.error) { console.error("image upload failed:", up.error.message); throw new AIError("save_failed", "We couldn’t save your image.", 500); }
 
     const title = (mode === "thumbnail" ? text || prompt : prompt).slice(0, 80);
-    const { data, error } = await db.rpc("complete_image_creation", { p_user_id: auth.userId, p_tool_type: mode, p_title: title, p_prompt: prompt, p_image_path: path, p_aspect: aspect, p_model_label: model.name, p_amount: cost });
+    const { data, error } = await db.rpc("complete_image_creation", { p_user_id: auth.userId, p_tool_type: mode, p_title: title, p_prompt: prompt, p_image_path: path, p_aspect: aspect, p_model_label: model.name, p_amount: cost, p_session_id: sessionId, p_session_title: sessionTitle });
     if (error) { await db.storage.from(BUCKET).remove([path]); throw error; }
     if (data.status === "unpaid") return fail(402, "insufficient_points", "Your points ran out while this was generating. The image was saved to your Library as unpaid.");
 
     const { data: s } = await db.storage.from(BUCKET).createSignedUrl(path, 3600);
     return NextResponse.json({
       balance: data.balance,
-      creation: { id: data.creation_id, tool_type: mode, title, prompt, image_path: path, aspect_ratio: aspect, model_label: model.name, points_charged: data.points_charged, status: "succeeded", created_at: new Date().toISOString(), url: s?.signedUrl },
+      creation: { id: data.creation_id, tool_type: mode, title, prompt, image_path: path, aspect_ratio: aspect, model_label: model.name, points_charged: data.points_charged, status: "succeeded", session_id: sessionId, session_title: sessionTitle, created_at: new Date().toISOString(), url: s?.signedUrl },
     });
   } catch (e) { return handle(e); }
 }
