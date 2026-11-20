@@ -13,12 +13,12 @@ export async function POST(req: Request) {
   const got = req.headers.get("x-paystack-signature") ?? "";
   if (got.length !== expected.length || !timingSafeEqual(Buffer.from(got), Buffer.from(expected))) return NextResponse.json({ ok: false }, { status: 401 });
 
-  let event: { event?: string; data?: { reference?: string; amount?: number; currency?: string; status?: string } };
+  let event: { event?: string; data?: { reference?: string; amount?: number; currency?: string; status?: string; channel?: string } };
   try { event = JSON.parse(raw); } catch { return NextResponse.json({ ok: false }, { status: 400 }); }
   if (event.event !== "charge.success" || !event.data?.reference || event.data.status !== "success") return NextResponse.json({ ok: true, ignored: true });
 
   try {
-    const s = await settle(event.data.reference, Number(event.data.amount), String(event.data.currency));
+    const s = await settle(event.data.reference, Number(event.data.amount), String(event.data.currency), String(event.data.channel ?? ""));
     if (s.kind !== "ok") console.error("webhook: not credited", event.data.reference, s.kind); // unknown or mismatching payments are logged, never credited
     return NextResponse.json({ ok: true });
   } catch (e) {
