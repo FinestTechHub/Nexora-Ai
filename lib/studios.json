@@ -378,6 +378,12 @@
     "name": "Nexora Image Pro",
     "points": 10,
     "badge": "Sharp thumbnail text & multi-photo blending"
+   },
+   {
+    "id": "image-ultra",
+    "name": "Nexora Image Ultra",
+    "points": 20,
+    "badge": "Flagship studio realism & intricate detail"
    }
   ],
   "text": [
